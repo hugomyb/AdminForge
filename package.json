@@ -1,0 +1,28 @@
+{
+    "$schema": "https://json.schemastore.org/package.json",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "vite build",
+        "dev": "vite"
+    },
+    "devDependencies": {
+        "@tailwindcss/vite": "^4.0.0",
+        "axios": "^1.8.2",
+        "concurrently": "^9.0.1",
+        "laravel-vite-plugin": "^1.2.0",
+        "tailwindcss": "^4.0.0",
+        "vite": "^6.2.4"
+    },
+    "dependencies": {
+        "@codemirror/autocomplete": "^6.18.6",
+        "@codemirror/commands": "^6.8.1",
+        "@codemirror/lang-sql": "^6.9.0",
+        "@codemirror/lint": "^6.8.5",
+        "@codemirror/search": "^6.5.11",
+        "@codemirror/state": "^6.5.2",
+        "@codemirror/theme-one-dark": "^6.1.2",
+        "@codemirror/view": "^6.37.1",
+        "codemirror": "^6.0.1"
+    }
+}

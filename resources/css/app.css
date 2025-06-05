@@ -1,0 +1,50 @@
+@import 'tailwindcss';
+@import './adminforge.css';
+
+@source '../../vendor/filament/**/*.blade.php';
+@source '../../app/Filament/**/*.php';
+@source '../views/**/*.blade.php';
+@source '../views/filament/**/*.blade.php';
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* Couleurs pour les erreurs */
+    --color-red-50: #fef2f2;
+    --color-red-100: #fee2e2;
+    --color-red-200: #fecaca;
+    --color-red-300: #fca5a5;
+    --color-red-400: #f87171;
+    --color-red-500: #ef4444;
+    --color-red-600: #dc2626;
+    --color-red-700: #b91c1c;
+    --color-red-800: #991b1b;
+    --color-red-900: #7f1d1d;
+
+    /* Couleurs pour les avertissements */
+    --color-yellow-50: #fffbeb;
+    --color-yellow-100: #fef3c7;
+    --color-yellow-300: #fcd34d;
+    --color-yellow-500: #f59e0b;
+    --color-yellow-600: #d97706;
+
+    /* Couleurs pour le succès */
+    --color-green-50: #f0fdf4;
+    --color-green-100: #dcfce7;
+    --color-green-500: #22c55e;
+    --color-green-600: #16a34a;
+    --color-green-800: #166534;
+
+    /* Couleurs grises */
+    --color-gray-50: #f9fafb;
+    --color-gray-100: #f3f4f6;
+    --color-gray-200: #e5e7eb;
+    --color-gray-300: #d1d5db;
+    --color-gray-400: #9ca3af;
+    --color-gray-500: #6b7280;
+    --color-gray-600: #4b5563;
+    --color-gray-700: #374151;
+    --color-gray-800: #1f2937;
+    --color-gray-900: #111827;
+}
