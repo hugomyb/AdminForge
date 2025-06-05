@@ -176,11 +176,68 @@ class OpenAIService
 
         } catch (\Exception $e) {
             Log::error('Erreur OpenAI explainSqlQuery: ' . $e->getMessage());
-            
+
             return [
                 'success' => false,
                 'message' => 'Erreur lors de l\'explication: ' . $e->getMessage(),
                 'explanation' => ''
+            ];
+        }
+    }
+
+    /**
+     * Générer un nom descriptif pour une requête SQL
+     */
+    public function generateQueryName(string $query): array
+    {
+        if (!$this->isEnabled()) {
+            return [
+                'success' => false,
+                'message' => 'Les fonctionnalités IA ne sont pas activées.',
+                'name' => ''
+            ];
+        }
+
+        try {
+            $systemPrompt = "Tu es un expert SQL. Génère un nom court et descriptif pour les requêtes SQL en français. Le nom doit être concis (maximum 50 caractères) et décrire clairement ce que fait la requête.";
+            $userPrompt = "Génère un nom descriptif pour cette requête SQL:\n\n{$query}\n\nRéponds uniquement avec le nom, sans explication supplémentaire.";
+
+            $response = $this->callOpenAI([
+                [
+                    'role' => 'system',
+                    'content' => $systemPrompt
+                ],
+                [
+                    'role' => 'user',
+                    'content' => $userPrompt
+                ]
+            ], 100); // Limite de tokens réduite pour un nom court
+
+            if ($response['success']) {
+                $name = trim($response['content']);
+                // Nettoyer le nom (enlever les guillemets, etc.)
+                $name = trim($name, '"\'');
+                // Limiter la longueur
+                if (strlen($name) > 50) {
+                    $name = substr($name, 0, 47) . '...';
+                }
+
+                return [
+                    'success' => true,
+                    'name' => $name,
+                    'message' => 'Nom généré avec succès'
+                ];
+            }
+
+            return $response;
+
+        } catch (\Exception $e) {
+            Log::error('Erreur OpenAI generateQueryName: ' . $e->getMessage());
+
+            return [
+                'success' => false,
+                'message' => 'Erreur lors de la génération du nom: ' . $e->getMessage(),
+                'name' => ''
             ];
         }
     }

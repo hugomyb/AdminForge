@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use Filament\Pages\Page;
+use App\Models\SavedQuery;
 use App\Services\DatabaseExplorerService;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\Select;
@@ -12,8 +13,12 @@ use Filament\Forms\Contracts\HasForms;
 use Filament\Actions\Action;
 use Filament\Actions\Concerns\InteractsWithActions;
 use Filament\Actions\Contracts\HasActions;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Grid;
+use Filament\Forms\Components\Placeholder;
 use Filament\Notifications\Notification;
 use App\Services\OpenAIService;
+use Illuminate\Support\Facades\Auth;
 
 class SqlPlayground extends Page implements HasForms, HasActions
 {
@@ -49,9 +54,17 @@ class SqlPlayground extends Page implements HasForms, HasActions
     public array $paginatedResults = [];
     public string $originalQuery = ''; // Stocker la requête originale pour la pagination
 
+    // Propriétés pour les requêtes sauvegardées
+    public array $savedQueries = [];
+
+    // Propriétés temporaires pour les modals
+    public string $tempQueryForSave = '';
+    public string $tempDatabaseForSave = '';
+
     public function mount(): void
     {
         $this->loadQueryHistory();
+        $this->loadSavedQueries();
 
         // Ne pas sélectionner automatiquement une base de données
         // L'utilisateur doit faire un choix conscient
@@ -72,6 +85,9 @@ class SqlPlayground extends Page implements HasForms, HasActions
     {
         // Effacer les résultats précédents quand on change de base de données
         $this->clearResults();
+
+        // Recharger les requêtes sauvegardées pour la nouvelle base de données
+        $this->loadSavedQueries();
 
         // Déclencher l'événement pour mettre à jour l'éditeur SQL
         $this->dispatch('database-changed');
@@ -690,4 +706,360 @@ class SqlPlayground extends Page implements HasForms, HasActions
 
         return $actions;
     }
+
+    // ===== ACTIONS FILAMENT =====
+
+    public function saveQueryAction(): Action
+    {
+        return Action::make('saveQuery')
+            ->label('Sauvegarder la requête')
+            ->icon('heroicon-o-bookmark')
+            ->slideOver()
+            ->modalWidth('md')
+            ->modalSubmitActionLabel('Sauvegarder')
+            ->form([
+                Grid::make(1)->schema([
+                    Placeholder::make('query_preview')
+                        ->label('Requête à sauvegarder')
+                        ->content(fn () => new \Illuminate\Support\HtmlString(
+                            '<div class="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 max-h-40 overflow-y-auto">' .
+                            '<div class="flex items-center gap-2 mb-2">' .
+                            '<svg class="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M14.447 3.026a.75.75 0 0 1 .527.921l-4.5 16.5a.75.75 0 0 1-1.448-.394l4.5-16.5a.75.75 0 0 1 .921-.527ZM16.72 6.22a.75.75 0 0 1 1.06 0l5.25 5.25a.75.75 0 0 1 0 1.06l-5.25 5.25a.75.75 0 1 1-1.06-1.06L21.44 12l-4.72-4.72a.75.75 0 0 1 0-1.06Zm-9.44 0a.75.75 0 0 1 0 1.06L2.56 12l4.72 4.72a.75.75 0 0 1-1.06 1.06L.97 12.53a.75.75 0 0 1 0-1.06l5.25-5.25a.75.75 0 0 1 1.06 0Z" clip-rule="evenodd"/></svg>' .
+                            '<span class="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Requête SQL</span>' .
+                            '</div>' .
+                            '<pre class="text-sm font-mono text-gray-900 dark:text-gray-100 whitespace-pre-wrap leading-relaxed">' . e($this->tempQueryForSave) . '</pre>' .
+                            '</div>'
+                        )),
+
+                    Placeholder::make('database_info')
+                        ->label('Base de données')
+                        ->content(fn () => $this->tempDatabaseForSave),
+
+                    TextInput::make('name')
+                        ->label('Nom de la requête')
+                        ->placeholder('Saisissez un nom pour cette requête...')
+                        ->required()
+                        ->maxLength(255)
+                        ->suffixAction(
+                            $this->isAiEnabled()
+                                ? \Filament\Forms\Components\Actions\Action::make('generateName')
+                                    ->icon('heroicon-o-sparkles')
+                                    ->color('purple')
+                                    ->tooltip('Générer un nom avec l\'IA')
+                                    ->action(function ($set) {
+                                        $openAiService = app(OpenAIService::class);
+                                        $result = $openAiService->generateQueryName($this->tempQueryForSave);
+
+                                        if ($result['success']) {
+                                            $set('name', $result['name']);
+                                            Notification::make()
+                                                ->title('Nom généré')
+                                                ->body('Le nom de la requête a été généré avec succès')
+                                                ->success()
+                                                ->send();
+                                        } else {
+                                            Notification::make()
+                                                ->title('Erreur IA')
+                                                ->body($result['message'])
+                                                ->danger()
+                                                ->send();
+                                        }
+                                    })
+                                : null
+                        ),
+                ])
+            ])
+            ->action(function (array $data): void {
+                try {
+                    SavedQuery::create([
+                        'name' => trim($data['name']),
+                        'query' => $this->tempQueryForSave,
+                        'database_name' => $this->tempDatabaseForSave,
+                        'user_id' => Auth::id(),
+                    ]);
+
+                    $this->loadSavedQueries();
+
+                    // Nettoyer les propriétés temporaires
+                    $this->tempQueryForSave = '';
+                    $this->tempDatabaseForSave = '';
+
+                    Notification::make()
+                        ->title('Requête sauvegardée')
+                        ->body('La requête a été sauvegardée avec succès')
+                        ->success()
+                        ->send();
+
+                } catch (\Exception $e) {
+                    Notification::make()
+                        ->title('Erreur de sauvegarde')
+                        ->body('Impossible de sauvegarder la requête : ' . $e->getMessage())
+                        ->danger()
+                        ->send();
+                }
+            });
+    }
+
+    // ===== MÉTHODES POUR LES REQUÊTES SAUVEGARDÉES =====
+
+    public function loadSavedQueries(): void
+    {
+        $this->savedQueries = SavedQuery::where('user_id', Auth::id())
+            ->where('database_name', $this->selectedDatabase ?: '')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->toArray();
+    }
+
+    public function openSaveModal(): void
+    {
+        if (empty(trim($this->sqlQuery))) {
+            Notification::make()
+                ->title('Requête requise')
+                ->body('Veuillez saisir une requête SQL avant de la sauvegarder')
+                ->warning()
+                ->send();
+            return;
+        }
+
+        if (empty($this->selectedDatabase)) {
+            Notification::make()
+                ->title('Base de données requise')
+                ->body('Veuillez sélectionner une base de données')
+                ->warning()
+                ->send();
+            return;
+        }
+
+        // Stocker temporairement les données pour le modal
+        $this->tempQueryForSave = $this->sqlQuery;
+        $this->tempDatabaseForSave = $this->selectedDatabase;
+
+        $this->mountAction('saveQuery');
+    }
+
+
+
+    public function loadSavedQuery(int $queryId): void
+    {
+        try {
+            $savedQuery = SavedQuery::where('id', $queryId)
+                ->where('user_id', Auth::id())
+                ->first();
+
+            if (!$savedQuery) {
+                Notification::make()
+                    ->title('Requête introuvable')
+                    ->body('La requête demandée n\'existe pas ou ne vous appartient pas')
+                    ->warning()
+                    ->send();
+                return;
+            }
+
+            // Changer de base de données si nécessaire
+            if ($savedQuery->database_name !== $this->selectedDatabase) {
+                $this->selectedDatabase = $savedQuery->database_name;
+                $this->clearResults();
+                $this->dispatch('database-changed');
+            }
+
+            $this->sqlQuery = $savedQuery->query;
+
+            // Émettre un événement pour mettre à jour l'éditeur
+            $this->dispatch('update-sql-editor', query: $savedQuery->query);
+
+            Notification::make()
+                ->title('Requête chargée pour modification')
+                ->body("La requête \"{$savedQuery->name}\" a été chargée dans l'éditeur")
+                ->success()
+                ->send();
+
+        } catch (\Exception $e) {
+            Notification::make()
+                ->title('Erreur de chargement')
+                ->body('Impossible de charger la requête : ' . $e->getMessage())
+                ->danger()
+                ->send();
+        }
+    }
+
+    public function executeFromSaved(int $queryId): void
+    {
+        try {
+            $savedQuery = SavedQuery::where('id', $queryId)
+                ->where('user_id', Auth::id())
+                ->first();
+
+            if (!$savedQuery) {
+                Notification::make()
+                    ->title('Requête introuvable')
+                    ->body('La requête demandée n\'existe pas ou ne vous appartient pas')
+                    ->warning()
+                    ->send();
+                return;
+            }
+
+            // Changer de base de données si nécessaire
+            if ($savedQuery->database_name !== $this->selectedDatabase) {
+                $this->selectedDatabase = $savedQuery->database_name;
+                $this->clearResults();
+                $this->dispatch('database-changed');
+            }
+
+            // Charger la requête
+            $this->sqlQuery = $savedQuery->query;
+            $this->dispatch('update-sql-editor', query: $savedQuery->query);
+
+            // Exécuter immédiatement
+            $this->executeQuery();
+
+            Notification::make()
+                ->title('Requête exécutée')
+                ->body("La requête \"{$savedQuery->name}\" a été exécutée")
+                ->success()
+                ->send();
+
+        } catch (\Exception $e) {
+            Notification::make()
+                ->title('Erreur d\'exécution')
+                ->body('Impossible d\'exécuter la requête : ' . $e->getMessage())
+                ->danger()
+                ->send();
+        }
+    }
+
+    public function deleteSavedQuery(int $queryId): void
+    {
+        try {
+            $savedQuery = SavedQuery::where('id', $queryId)
+                ->where('user_id', Auth::id())
+                ->first();
+
+            if (!$savedQuery) {
+                Notification::make()
+                    ->title('Requête introuvable')
+                    ->body('La requête demandée n\'existe pas ou ne vous appartient pas')
+                    ->warning()
+                    ->send();
+                return;
+            }
+
+            $queryName = $savedQuery->name;
+            $savedQuery->delete();
+            $this->loadSavedQueries();
+
+            Notification::make()
+                ->title('Requête supprimée')
+                ->body("La requête \"{$queryName}\" a été supprimée")
+                ->success()
+                ->send();
+
+        } catch (\Exception $e) {
+            Notification::make()
+                ->title('Erreur de suppression')
+                ->body('Impossible de supprimer la requête : ' . $e->getMessage())
+                ->danger()
+                ->send();
+        }
+    }
+
+    public function saveFromHistory(string $query, string $database): void
+    {
+        // Stocker temporairement les données pour le modal
+        $this->tempQueryForSave = $query;
+        $this->tempDatabaseForSave = $database;
+
+        $this->mountAction('saveFromHistoryAction');
+    }
+
+    public function saveFromHistoryAction(): Action
+    {
+        return Action::make('saveFromHistory')
+            ->label('Sauvegarder la requête')
+            ->icon('heroicon-o-bookmark')
+            ->slideOver()
+            ->modalWidth('md')
+            ->form([
+                Grid::make(1)->schema([
+                    Placeholder::make('query_preview')
+                        ->label('Requête à sauvegarder')
+                        ->content(fn () => new \Illuminate\Support\HtmlString(
+                            '<div class="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 max-h-40 overflow-y-auto">' .
+                            '<div class="flex items-center gap-2 mb-2">' .
+                            '<svg class="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M14.447 3.026a.75.75 0 0 1 .527.921l-4.5 16.5a.75.75 0 0 1-1.448-.394l4.5-16.5a.75.75 0 0 1 .921-.527ZM16.72 6.22a.75.75 0 0 1 1.06 0l5.25 5.25a.75.75 0 0 1 0 1.06l-5.25 5.25a.75.75 0 1 1-1.06-1.06L21.44 12l-4.72-4.72a.75.75 0 0 1 0-1.06Zm-9.44 0a.75.75 0 0 1 0 1.06L2.56 12l4.72 4.72a.75.75 0 0 1-1.06 1.06L.97 12.53a.75.75 0 0 1 0-1.06l5.25-5.25a.75.75 0 0 1 1.06 0Z" clip-rule="evenodd"/></svg>' .
+                            '<span class="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Requête SQL</span>' .
+                            '</div>' .
+                            '<pre class="text-sm font-mono text-gray-900 dark:text-gray-100 whitespace-pre-wrap leading-relaxed">' . e($this->tempQueryForSave) . '</pre>' .
+                            '</div>'
+                        )),
+
+                    Placeholder::make('database_info')
+                        ->label('Base de données')
+                        ->content(fn () => $this->tempDatabaseForSave),
+
+                    TextInput::make('name')
+                        ->label('Nom de la requête')
+                        ->placeholder('Saisissez un nom pour cette requête...')
+                        ->required()
+                        ->maxLength(255)
+                        ->suffixAction(
+                            $this->isAiEnabled()
+                                ? \Filament\Forms\Components\Actions\Action::make('generateName')
+                                    ->icon('heroicon-o-sparkles')
+                                    ->color('purple')
+                                    ->tooltip('Générer un nom avec l\'IA')
+                                    ->action(function ($set) {
+                                        $openAiService = app(OpenAIService::class);
+                                        $result = $openAiService->generateQueryName($this->tempQueryForSave);
+
+                                        if ($result['success']) {
+                                            $set('name', $result['name']);
+                                            Notification::make()
+                                                ->title('Nom généré')
+                                                ->body('Le nom de la requête a été généré avec succès')
+                                                ->success()
+                                                ->send();
+                                        } else {
+                                            Notification::make()
+                                                ->title('Erreur IA')
+                                                ->body($result['message'])
+                                                ->danger()
+                                                ->send();
+                                        }
+                                    })
+                                : null
+                        ),
+                ])
+            ])
+            ->action(function (array $data): void {
+                try {
+                    SavedQuery::create([
+                        'name' => trim($data['name']),
+                        'query' => $this->tempQueryForSave,
+                        'database_name' => $this->tempDatabaseForSave,
+                        'user_id' => Auth::id(),
+                    ]);
+
+                    $this->loadSavedQueries();
+
+                    // Nettoyer les propriétés temporaires
+                    $this->tempQueryForSave = '';
+                    $this->tempDatabaseForSave = '';
+
+                    Notification::make()
+                        ->title('Requête sauvegardée')
+                        ->body('La requête de l\'historique a été sauvegardée avec succès')
+                        ->success()
+                        ->send();
+
+                } catch (\Exception $e) {
+                    Notification::make()
+                        ->title('Erreur de sauvegarde')
+                        ->body('Impossible de sauvegarder la requête : ' . $e->getMessage())
+                        ->danger()
+                        ->send();
+                }
+            });
+    }
+
 }
