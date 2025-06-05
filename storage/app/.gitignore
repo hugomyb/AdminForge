@@ -1,4 +1,25 @@
+# Application Storage - Ignore all user content
 *
+!.gitignore
 !private/
 !public/
-!.gitignore
+!public/.gitkeep
+
+# Keep AdminForge specific directories structure
+!sql-exports/
+!sql-exports/.gitkeep
+!database-backups/
+!database-backups/.gitkeep
+!local/
+!local/.gitkeep
+
+# Security: Never commit sensitive files
+*.sql
+*.dump
+*.backup
+api_keys.*
+secrets.*
+*_secret*
+*_token*
+*.key
+*.pem

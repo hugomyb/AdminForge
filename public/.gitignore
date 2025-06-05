@@ -1,0 +1,44 @@
+# Public Directory - User Uploads & Generated Files
+
+# User uploads
+uploads/
+files/
+documents/
+images/user/
+avatars/
+
+# Generated assets
+build/
+hot
+mix-manifest.json
+
+# Storage symlink content
+storage/
+
+# Logs in public (if any)
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Cache files
+*.cache
+
+# Never commit sensitive files that might end up here
+*api_key*
+*secret*
+*token*
+*password*
+*credential*
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Keep structure
+!.gitignore
+!index.php
+!.htaccess
+!robots.txt
+!favicon.ico

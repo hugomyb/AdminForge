@@ -1,0 +1,35 @@
+# Configuration Files - Security Protection
+
+# Backup files (often contain sensitive data)
+*.backup
+*.bak
+*.old
+*.orig
+*.tmp
+
+# Local configuration overrides
+*.local.php
+*_local.php
+local_*.php
+
+# Environment-specific configs
+production.php
+staging.php
+development.php
+
+# Files that might contain API keys or secrets
+*_keys.php
+*_secrets.php
+api_*.php
+secret_*.php
+
+# Database configuration backups
+database.backup.php
+database_*.php
+
+# Never commit these patterns anywhere in config
+*api_key*
+*secret*
+*token*
+*password*
+*credential*

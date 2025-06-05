@@ -1,0 +1,45 @@
+# Tests Directory - Generated Files & Coverage
+
+# Test output
+_output/
+_support/_generated/
+
+# Coverage reports
+coverage/
+coverage.xml
+coverage.html
+clover.xml
+
+# PHPUnit cache
+.phpunit.cache
+.phpunit.result.cache
+
+# Test databases
+*.sqlite
+*.sqlite3
+test_*.sql
+
+# Test logs
+*.log
+test_*.log
+
+# Temporary test files
+*.tmp
+*.temp
+temp_*
+
+# Never commit test files with sensitive data
+*api_key*
+*secret*
+*token*
+*password*
+*credential*
+test_secrets.*
+test_keys.*
+
+# Keep structure
+!.gitignore
+!Feature/
+!Unit/
+!TestCase.php
+!CreatesApplication.php

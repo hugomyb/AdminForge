@@ -1,0 +1,41 @@
+# Documentation Directory
+
+# Build output
+_build/
+.doctrees/
+_static/
+_templates/
+
+# Generated documentation
+*.pdf
+*.epub
+*.mobi
+
+# Temporary files
+*.tmp
+*.temp
+~$*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+
+# Never commit sensitive documentation
+*api_key*
+*secret*
+*token*
+*password*
+*credential*
+private_*
+internal_*
+
+# Keep structure
+!.gitignore
+!*.md
+!images/
+!examples/

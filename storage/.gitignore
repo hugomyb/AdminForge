@@ -1,0 +1,41 @@
+# Storage Directory - Ignore all except structure
+*
+!.gitignore
+!app/
+!framework/
+!logs/
+
+# Keep directory structure
+!app/.gitkeep
+!app/public/
+!app/public/.gitkeep
+!framework/.gitkeep
+!framework/cache/
+!framework/cache/.gitkeep
+!framework/sessions/
+!framework/sessions/.gitkeep
+!framework/testing/
+!framework/testing/.gitkeep
+!framework/views/
+!framework/views/.gitkeep
+!logs/.gitkeep
+
+# Specific AdminForge directories
+!app/sql-exports/
+!app/sql-exports/.gitkeep
+!app/database-backups/
+!app/database-backups/.gitkeep
+!app/local/
+!app/local/.gitkeep
+
+# Security: Never commit these
+*.key
+*.pem
+*.p12
+*.pfx
+api_keys.*
+secrets.*
+*_secret*
+*_token*
+backup_*.sql
+dump_*.sql

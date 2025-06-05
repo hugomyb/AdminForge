@@ -1,26 +1,123 @@
+# Laravel Framework
 *.log
-.DS_Store
 .env
 .env.backup
 .env.production
+.env.local
+.env.testing
+.env.dusk.local
 .phpactor.json
 .phpunit.result.cache
+/auth.json
+/vendor
+/storage/*.key
+/storage/pail
+/storage/logs/*
+!/storage/logs/.gitkeep
+/bootstrap/cache/*
+!/bootstrap/cache/.gitkeep
+
+# Node.js & Frontend
+/node_modules
+/public/build
+/public/hot
+/public/storage
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# IDE & Editors
 /.fleet
 /.idea
 /.nova
 /.phpunit.cache
 /.vscode
 /.zed
-/auth.json
-/node_modules
-/public/build
-/public/hot
-/public/storage
-/storage/*.key
-/storage/pail
-/vendor
+.DS_Store
+Thumbs.db
+
+# Homestead & Vagrant
 Homestead.json
 Homestead.yaml
-npm-debug.log
+.vagrant/
+
+# Database & Backups
+*.sql
+*.sqlite
+*.sqlite3
+/database/*.sqlite
+/database/*.sqlite3
+/storage/app/backups/*
+!/storage/app/backups/.gitkeep
+
+# Configuration Files with Sensitive Data
+/config/adminforge.php.backup
+/config/services.php.backup
+/config/*.local.php
+
+# API Keys & Secrets (Extra Security)
+**/api_keys.txt
+**/secrets.txt
+**/*_secret*
+**/*_key*
+**/*_token*
+.api_keys
+.secrets
+
+# Logs & Debug
+/storage/logs/*.log
+/storage/debugbar/
+*.log.*
+debug.log
+error.log
+
+# Cache & Temporary Files
+/storage/framework/cache/*
+!/storage/framework/cache/.gitkeep
+/storage/framework/sessions/*
+!/storage/framework/sessions/.gitkeep
+/storage/framework/views/*
+!/storage/framework/views/.gitkeep
+/storage/app/public/*
+!/storage/app/public/.gitkeep
+.phpunit.cache
+.php_cs.cache
+.php-cs-fixer.cache
+
+# Documentation Build
+/docs/_build/
+/docs/.doctrees/
+
+# OS Generated Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
-yarn-error.log
+Desktop.ini
+
+# Testing
+/coverage/
+/.phpunit.cache
+/tests/_output/
+/tests/_support/_generated
+
+# Deployment
+/deploy.php
+/deployment/
+/.deployer/
+
+# Local Development
+/public/uploads/*
+!/public/uploads/.gitkeep
+/storage/app/local/*
+!/storage/app/local/.gitkeep
+
+# AdminForge Specific
+/storage/app/sql-exports/*
+!/storage/app/sql-exports/.gitkeep
+/storage/app/database-backups/*
+!/storage/app/database-backups/.gitkeep

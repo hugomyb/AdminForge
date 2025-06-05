@@ -25,6 +25,7 @@ class SqlPlayground extends Page implements HasForms, HasActions
     protected static ?string $title = 'SQL Playground';
     protected static ?string $navigationLabel = 'SQL Playground';
     protected static ?int $navigationSort = 1;
+    protected ?string $maxContentWidth = 'full';
 
     public string $sqlQuery = '';
     public string $selectedDatabase = '';

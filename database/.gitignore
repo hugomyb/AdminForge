@@ -1,1 +1,39 @@
-*.sqlite*
+# Database Files - Security Protection
+
+# SQLite databases
+*.sqlite
+*.sqlite3
+*.db
+
+# Database dumps and backups
+*.sql
+*.dump
+*.backup
+dump_*.sql
+backup_*.sql
+*_dump.sql
+*_backup.sql
+
+# Database exports
+export_*.sql
+exports/
+
+# Sensitive database files
+*_production.sql
+*_prod.sql
+*_live.sql
+
+# Database configuration files
+database_config.*
+db_config.*
+
+# Never commit actual data
+data/
+dumps/
+backups/
+
+# Keep structure
+!.gitignore
+!migrations/
+!seeders/
+!factories/

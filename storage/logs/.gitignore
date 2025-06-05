@@ -1,2 +1,14 @@
+# Logs Directory - Ignore all log files
 *
 !.gitignore
+!.gitkeep
+
+# Keep some log files for debugging (optional)
+# !laravel.log
+
+# Security: Never commit sensitive logs
+*api_key*
+*secret*
+*token*
+*password*
+*credential*
