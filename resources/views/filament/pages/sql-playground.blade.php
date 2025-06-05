@@ -180,7 +180,6 @@
                                 class="sql-editor-wrapper"
                                 data-readonly="{{ empty($selectedDatabase) ? 'true' : 'false' }}"
                                 data-placeholder="{{ empty($selectedDatabase) ? '-- Sélectionnez d\'abord une base de données pour commencer...' : '-- Saisissez votre requête SQL ici...' }}"
-                                data-current-query="{{ $sqlQuery }}"
                             ></div>
                         </div>
 
@@ -364,7 +363,7 @@
                                                             @endphp
                                                             <span
                                                                 class="font-mono text-primary-600 cursor-help underline decoration-dotted hover:bg-primary-50 hover:text-primary-800 px-1 py-0.5 rounded transition-all duration-200"
-                                                                x-tooltip="'{{ str_replace("'", "\'", $tooltipContent) }}'"
+                                                                x-tooltip="'{{ htmlspecialchars(str_replace("'", "\'", $tooltipContent), ENT_QUOTES | ENT_HTML5, 'UTF-8') }}'"
                                                             >
                                                                 {{ $value }}
                                                             </span>
@@ -373,7 +372,7 @@
                                                         @elseif(strlen($value) > 100)
                                                             <div class="max-w-xs">
                                                                 <span class="block truncate"
-                                                                      title="{{ $value }}">{{ $value }}</span>
+                                                                      title="{{ htmlspecialchars($value, ENT_QUOTES | ENT_HTML5, 'UTF-8') }}">{{ $value }}</span>
                                                                 <x-filament::link size="sm" class="mt-1">
                                                                     Voir plus
                                                                 </x-filament::link>
@@ -464,9 +463,9 @@
                                                         size="xs"
                                                         color="gray"
                                                         icon="heroicon-o-pencil"
-                                                        tooltip="Charger pour modifier"
+                                                        tooltip="Charger dans l'éditeur"
                                                     >
-                                                        Modifier
+                                                        Charger
                                                     </x-filament::button>
                                                     <x-filament::button
                                                         wire:click="executeFromSaved({{ $savedQuery['id'] }})"
@@ -568,7 +567,7 @@
                                                     </p>
                                                     <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                         <x-filament::button
-                                                            wire:click="loadQueryFromHistory({{ json_encode($item['query']) }})"
+                                                            wire:click="loadQueryFromHistory('{{ base64_encode($item['query']) }}')"
                                                             size="xs"
                                                             color="gray"
                                                             icon="heroicon-o-arrow-up-tray"
@@ -577,7 +576,7 @@
                                                             Charger
                                                         </x-filament::button>
                                                         <x-filament::button
-                                                            wire:click="saveFromHistory({{ json_encode($item['query']) }}, {{ json_encode($item['database']) }})"
+                                                            wire:click="saveFromHistory('{{ base64_encode($item['query']) }}', '{{ $item['database'] }}')"
                                                             size="xs"
                                                             color="primary"
                                                             icon="heroicon-o-bookmark"
@@ -867,6 +866,7 @@
 
                     // Utiliser le contenu sauvegardé ou la valeur du textarea
                     const initialContent = currentContent || textarea.value || '';
+                    console.log('Contenu initial pour l\'éditeur:', initialContent);
 
                     const state = EditorState.create({
                         doc: initialContent,

@@ -217,11 +217,17 @@ class DatabaseExplorerService
     public function executeQueryWithPagination(string $query, string $database = null, int $page = 1, int $perPage = 25): array
     {
         try {
-            // D'abord, obtenir le nombre total de résultats
+            // Détecter si l'utilisateur a déjà spécifié LIMIT/OFFSET
+            $existingPagination = $this->extractExistingPagination($query);
+            $hasUserPagination = $existingPagination['hasLimit'] || $existingPagination['hasOffset'];
+
+            // Obtenir le nombre total de résultats en tenant compte de la pagination utilisateur
             $totalCount = $this->getQueryTotalCount($query, $database);
 
-            // Ensuite, exécuter la requête avec LIMIT et OFFSET
+            // Calculer l'offset pour la pagination système
             $offset = ($page - 1) * $perPage;
+
+            // Ajouter la pagination en respectant les clauses utilisateur existantes
             $paginatedQuery = $this->addPaginationToQuery($query, $offset, $perPage);
 
             // Exécuter la requête paginée
@@ -240,7 +246,9 @@ class DatabaseExplorerService
                 'current_page' => $page,
                 'per_page' => $perPage,
                 'total_pages' => (int) ceil($totalCount / $perPage),
-                'message' => 'Requête exécutée avec succès'
+                'message' => 'Requête exécutée avec succès',
+                'has_user_pagination' => $hasUserPagination,
+                'user_pagination_info' => $existingPagination
             ];
         } catch (\Exception $e) {
             return [
@@ -250,18 +258,20 @@ class DatabaseExplorerService
                 'current_page' => $page,
                 'per_page' => $perPage,
                 'total_pages' => 0,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
+                'has_user_pagination' => false,
+                'user_pagination_info' => []
             ];
         }
     }
 
     /**
-     * Obtenir le nombre total de résultats d'une requête
+     * Méthode simplifiée pour obtenir le nombre total sans gestion LIMIT/OFFSET
      */
-    private function getQueryTotalCount(string $query, string $database = null): int
+    private function getQueryTotalCountSimple(string $query, string $database = null): int
     {
         try {
-            // Créer une requête COUNT en wrappant la requête originale
+            // Créer une requête COUNT simple
             $countQuery = "SELECT COUNT(*) as total FROM ({$query}) as count_query";
 
             if ($database) {
@@ -287,15 +297,163 @@ class DatabaseExplorerService
     }
 
     /**
-     * Ajouter LIMIT et OFFSET à une requête SQL
+     * Ajouter une pagination simple sans gestion des LIMIT/OFFSET existants
+     */
+    private function addSimplePagination(string $query, int $offset, int $limit): string
+    {
+        // Supprimer le point-virgule final s'il existe
+        $query = rtrim(trim($query), ';');
+
+        // Ajouter LIMIT et OFFSET à la fin
+        return $query . " LIMIT {$limit} OFFSET {$offset}";
+    }
+
+    /**
+     * Obtenir le nombre total de résultats d'une requête (VERSION COMPLEXE DÉSACTIVÉE)
+     */
+    private function getQueryTotalCount(string $query, string $database = null): int
+    {
+        try {
+            // Extraire les clauses LIMIT/OFFSET existantes pour le comptage
+            $existingPagination = $this->extractExistingPagination($query);
+
+            // Pour le comptage, on utilise la requête sans LIMIT/OFFSET
+            $queryForCount = $existingPagination['queryWithoutPagination'];
+
+            // Si l'utilisateur avait spécifié un LIMIT, le total ne peut pas dépasser cette valeur
+            $userLimit = $existingPagination['limitValue'];
+
+            // Créer une requête COUNT en wrappant la requête sans pagination
+            $countQuery = "SELECT COUNT(*) as total FROM ({$queryForCount}) as count_query";
+
+            if ($database) {
+                $result = $this->executeQueryOnDatabase($countQuery, $database);
+            } else {
+                $result = DB::select($countQuery);
+            }
+
+            $totalCount = $result[0]->total ?? 0;
+
+            // Si l'utilisateur avait spécifié un LIMIT, on limite le total à cette valeur
+            if ($userLimit && $totalCount > $userLimit) {
+                $totalCount = $userLimit;
+            }
+
+            return $totalCount;
+        } catch (\Exception $e) {
+            // Si la requête COUNT échoue, essayer d'exécuter la requête originale et compter
+            try {
+                // Extraire la pagination pour utiliser la requête sans LIMIT/OFFSET
+                $existingPagination = $this->extractExistingPagination($query);
+                $queryForCount = $existingPagination['queryWithoutPagination'];
+
+                if ($database) {
+                    $results = $this->executeQueryOnDatabase($queryForCount, $database);
+                } else {
+                    $results = DB::select($queryForCount);
+                }
+
+                $totalCount = count($results);
+
+                // Appliquer la limite utilisateur si elle existe
+                $userLimit = $existingPagination['limitValue'];
+                if ($userLimit && $totalCount > $userLimit) {
+                    $totalCount = $userLimit;
+                }
+
+                return $totalCount;
+            } catch (\Exception $e2) {
+                return 0;
+            }
+        }
+    }
+
+    /**
+     * Ajouter LIMIT et OFFSET à une requête SQL en gérant les clauses existantes
      */
     private function addPaginationToQuery(string $query, int $offset, int $limit): string
     {
         // Supprimer le point-virgule final s'il existe
         $query = rtrim(trim($query), ';');
 
-        // Ajouter LIMIT et OFFSET
+        // Vérifier si la requête contient déjà LIMIT ou OFFSET
+        $existingPagination = $this->extractExistingPagination($query);
+
+        if ($existingPagination['hasLimit'] || $existingPagination['hasOffset']) {
+            // Si l'utilisateur a déjà spécifié LIMIT/OFFSET, on respecte sa requête
+            // mais on doit adapter notre pagination
+            return $this->adaptUserPaginationToSystemPagination($query, $existingPagination, $offset, $limit);
+        }
+
+        // Ajouter LIMIT et OFFSET normalement si pas de clauses existantes
         return $query . " LIMIT {$limit} OFFSET {$offset}";
+    }
+
+    /**
+     * Extraire les clauses LIMIT et OFFSET existantes d'une requête
+     */
+    private function extractExistingPagination(string $query): array
+    {
+        $result = [
+            'hasLimit' => false,
+            'hasOffset' => false,
+            'limitValue' => null,
+            'offsetValue' => null,
+            'queryWithoutPagination' => $query
+        ];
+
+        // Pattern pour détecter LIMIT et OFFSET (insensible à la casse)
+        $pattern = '/\s+(LIMIT\s+(\d+))(\s+OFFSET\s+(\d+))?\s*$/i';
+
+        if (preg_match($pattern, $query, $matches)) {
+            $result['hasLimit'] = true;
+            $result['limitValue'] = (int) $matches[2];
+
+            if (isset($matches[4]) && $matches[4] !== '') {
+                $result['hasOffset'] = true;
+                $result['offsetValue'] = (int) $matches[4];
+            }
+
+            // Supprimer les clauses LIMIT/OFFSET de la requête
+            $result['queryWithoutPagination'] = preg_replace($pattern, '', $query);
+        } else {
+            // Vérifier seulement OFFSET (cas rare mais possible)
+            $offsetPattern = '/\s+OFFSET\s+(\d+)\s*$/i';
+            if (preg_match($offsetPattern, $query, $matches)) {
+                $result['hasOffset'] = true;
+                $result['offsetValue'] = (int) $matches[1];
+                $result['queryWithoutPagination'] = preg_replace($offsetPattern, '', $query);
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Adapter la pagination utilisateur à la pagination système
+     */
+    private function adaptUserPaginationToSystemPagination(string $query, array $existingPagination, int $systemOffset, int $systemLimit): string
+    {
+        // Si l'utilisateur a spécifié LIMIT/OFFSET, on doit calculer la pagination relative
+        $userLimit = $existingPagination['limitValue'];
+        $userOffset = $existingPagination['offsetValue'] ?? 0;
+
+        // Calculer les nouvelles valeurs en tenant compte de la pagination système
+        $newOffset = $userOffset + $systemOffset;
+
+        // Pour le LIMIT, on prend le minimum entre ce que l'utilisateur veut restant et notre limite système
+        $remainingUserLimit = max(0, $userLimit - $systemOffset);
+        $newLimit = min($remainingUserLimit, $systemLimit);
+
+        // Reconstruire la requête avec les nouvelles valeurs
+        $baseQuery = $existingPagination['queryWithoutPagination'];
+
+        if ($newLimit > 0) {
+            return $baseQuery . " LIMIT {$newLimit} OFFSET {$newOffset}";
+        } else {
+            // Retourner une requête qui ne retournera aucun résultat
+            return $baseQuery . " LIMIT 0";
+        }
     }
 
     /**

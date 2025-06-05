@@ -46,6 +46,8 @@ class SqlPlayground extends Page implements HasForms, HasActions
     public string $queryExplanation = '';
     public bool $queryExecuted = false;
     private bool $isExecuting = false;
+    public bool $hasUserPagination = false;
+    public array $userPaginationInfo = [];
 
     // Propriétés de pagination
     public int $currentPage = 1;
@@ -69,6 +71,24 @@ class SqlPlayground extends Page implements HasForms, HasActions
         // Ne pas sélectionner automatiquement une base de données
         // L'utilisateur doit faire un choix conscient
         $this->selectedDatabase = '';
+
+        // Nettoyer toutes les propriétés au montage
+        $this->cleanAllPublicProperties();
+    }
+
+
+
+    /**
+     * Hook Livewire appelé avant chaque mise à jour
+     */
+    public function updating($name, $value)
+    {
+        // Nettoyer les valeurs string avant qu'elles soient assignées
+        if (is_string($value)) {
+            return $this->sanitizeString($value);
+        }
+
+        return $value;
     }
 
     protected function getDatabaseService(): DatabaseExplorerService
@@ -103,6 +123,9 @@ class SqlPlayground extends Page implements HasForms, HasActions
         $this->isExecuting = true;
 
         try {
+            // NETTOYER TOUTES LES PROPRIÉTÉS PUBLIQUES AVANT TRAITEMENT
+            $this->cleanAllPublicProperties();
+
             // Vérifier qu'une base de données est sélectionnée
             if (empty($this->selectedDatabase)) {
                 Notification::make()
@@ -138,8 +161,9 @@ class SqlPlayground extends Page implements HasForms, HasActions
             $this->executionTime = microtime(true) - $startTime;
 
             if ($result['success']) {
-                $this->queryResults = $result['data'];
-                $this->paginatedResults = $result['data']; // Les données sont déjà paginées
+                // Nettoyer les données avant de les assigner aux propriétés publiques
+                $this->queryResults = $this->sanitizeArray($result['data']);
+                $this->paginatedResults = $this->sanitizeArray($result['data']); // Les données sont déjà paginées
                 $this->hasError = false;
                 $this->errorMessage = '';
                 $this->affectedRows = $result['total_count'];
@@ -149,17 +173,25 @@ class SqlPlayground extends Page implements HasForms, HasActions
                 $this->totalResults = $result['total_count'];
                 $this->currentPage = $result['current_page'];
 
-                // Détecter les colonnes de clés étrangères
-                $this->foreignKeyColumns = $this->getDatabaseService()->detectForeignKeyColumns(
-                    $this->queryResults,
-                    $this->selectedDatabase
-                );
+                // Stocker les informations de pagination utilisateur
+                $this->hasUserPagination = $result['has_user_pagination'] ?? false;
+                $this->userPaginationInfo = $result['user_pagination_info'] ?? [];
+
+                // Détecter les colonnes de clés étrangères avec nettoyage
+                try {
+                    $rawForeignKeyColumns = $this->getDatabaseService()->detectForeignKeyColumns(
+                        $this->queryResults,
+                        $this->selectedDatabase
+                    );
+                    $this->foreignKeyColumns = $this->sanitizeArray($rawForeignKeyColumns);
+                } catch (\Exception $e) {
+                    // En cas d'erreur, désactiver les clés étrangères pour cette requête
+                    $this->foreignKeyColumns = [];
+                    \Log::warning('Erreur lors de la détection des clés étrangères: ' . $e->getMessage());
+                }
 
                 // Ajouter à l'historique
                 $this->addToHistory($this->sqlQuery, true);
-
-                // Déclencher le scroll vers les résultats
-                $this->dispatch('scroll-to-results');
 
                 Notification::make()
                     ->title('Succès')
@@ -168,14 +200,11 @@ class SqlPlayground extends Page implements HasForms, HasActions
                     ->send();
             } else {
                 $this->hasError = true;
-                $this->errorMessage = $result['message'];
+                $this->errorMessage = $this->sanitizeString($result['message']);
                 $this->queryResults = [];
 
                 // Ajouter à l'historique même en cas d'erreur
                 $this->addToHistory($this->sqlQuery, false);
-
-                // Déclencher le scroll vers l'erreur
-                $this->dispatch('scroll-to-error');
 
                 Notification::make()
                     ->title('Erreur SQL')
@@ -186,11 +215,8 @@ class SqlPlayground extends Page implements HasForms, HasActions
 
         } catch (\Exception $e) {
             $this->hasError = true;
-            $this->errorMessage = $e->getMessage();
+            $this->errorMessage = $this->sanitizeString($e->getMessage());
             $this->queryResults = [];
-
-            // Déclencher le scroll vers l'erreur
-            $this->dispatch('scroll-to-error');
 
             Notification::make()
                 ->title('Erreur')
@@ -218,6 +244,10 @@ class SqlPlayground extends Page implements HasForms, HasActions
         $this->totalResults = 0;
         $this->paginatedResults = [];
         $this->originalQuery = '';
+
+        // Réinitialiser les informations de pagination utilisateur
+        $this->hasUserPagination = false;
+        $this->userPaginationInfo = [];
     }
 
     /**
@@ -239,14 +269,21 @@ class SqlPlayground extends Page implements HasForms, HasActions
             );
 
             if ($result['success']) {
-                $this->paginatedResults = $result['data'];
-                $this->queryResults = $result['data']; // Synchroniser pour les autres fonctionnalités
+                $this->paginatedResults = $this->sanitizeArray($result['data']);
+                $this->queryResults = $this->sanitizeArray($result['data']); // Synchroniser pour les autres fonctionnalités
 
-                // Mettre à jour les colonnes de clés étrangères pour la nouvelle page
-                $this->foreignKeyColumns = $this->getDatabaseService()->detectForeignKeyColumns(
-                    $this->paginatedResults,
-                    $this->selectedDatabase
-                );
+                // Mettre à jour les colonnes de clés étrangères pour la nouvelle page avec nettoyage
+                try {
+                    $rawForeignKeyColumns = $this->getDatabaseService()->detectForeignKeyColumns(
+                        $this->paginatedResults,
+                        $this->selectedDatabase
+                    );
+                    $this->foreignKeyColumns = $this->sanitizeArray($rawForeignKeyColumns);
+                } catch (\Exception $e) {
+                    // En cas d'erreur, désactiver les clés étrangères pour cette page
+                    $this->foreignKeyColumns = [];
+                    \Log::warning('Erreur lors de la détection des clés étrangères (pagination): ' . $e->getMessage());
+                }
             }
         } catch (\Exception $e) {
             $this->paginatedResults = [];
@@ -374,15 +411,18 @@ class SqlPlayground extends Page implements HasForms, HasActions
 
         // Émettre un événement pour mettre à jour l'éditeur
         \Log::info('Émission de l\'événement update-sql-editor avec query vide');
-        $this->dispatch('update-sql-editor', query: '');
+        $this->dispatch('update-sql-editor', query: $this->sanitizeQueryForDispatch(''));
     }
 
-    public function loadQueryFromHistory(string $query): void
+    public function loadQueryFromHistory(string $encodedQuery): void
     {
+        // Décoder la requête base64
+        $query = base64_decode($encodedQuery);
+
         $this->sqlQuery = $query;
 
         // Émettre un événement pour mettre à jour l'éditeur
-        $this->dispatch('update-sql-editor', query: $query);
+        $this->dispatch('update-sql-editor', query: $this->sanitizeQueryForDispatch($query));
     }
 
     public function clearHistory(): void
@@ -400,10 +440,10 @@ class SqlPlayground extends Page implements HasForms, HasActions
     protected function addToHistory(string $query, bool $success): void
     {
         $historyItem = [
-            'query' => $query,
+            'query' => $this->sanitizeString($query),
             'success' => $success,
             'timestamp' => now()->format('Y-m-d H:i:s'),
-            'database' => $this->selectedDatabase,
+            'database' => $this->sanitizeString($this->selectedDatabase),
             'execution_time' => $this->executionTime
         ];
 
@@ -419,7 +459,8 @@ class SqlPlayground extends Page implements HasForms, HasActions
 
     protected function loadQueryHistory(): void
     {
-        $this->queryHistory = session('sql_query_history', []);
+        $rawHistory = session('sql_query_history', []);
+        $this->queryHistory = $this->sanitizeArray($rawHistory);
     }
 
     public function getExampleQueries(): array
@@ -439,7 +480,7 @@ class SqlPlayground extends Page implements HasForms, HasActions
         $this->sqlQuery = $query;
 
         // Émettre un événement pour mettre à jour l'éditeur
-        $this->dispatch('update-sql-editor', query: $query);
+        $this->dispatch('update-sql-editor', query: $this->sanitizeQueryForDispatch($query));
     }
 
     public function toggleAiPanel(): void
@@ -485,7 +526,7 @@ class SqlPlayground extends Page implements HasForms, HasActions
             $this->showAiPanel = false;
 
             // Émettre un événement pour mettre à jour l'éditeur
-            $this->dispatch('update-sql-editor', query: $result['query']);
+            $this->dispatch('update-sql-editor', query: $this->sanitizeQueryForDispatch($result['query']));
 
             Notification::make()
                 ->title('Requête générée')
@@ -529,7 +570,7 @@ class SqlPlayground extends Page implements HasForms, HasActions
             $this->sqlQuery = $result['improved_query'];
 
             // Émettre un événement pour mettre à jour l'éditeur
-            $this->dispatch('update-sql-editor', query: $result['improved_query']);
+            $this->dispatch('update-sql-editor', query: $this->sanitizeQueryForDispatch($result['improved_query']));
 
             Notification::make()
                 ->title('Requête améliorée')
@@ -587,6 +628,81 @@ class SqlPlayground extends Page implements HasForms, HasActions
     {
         return app(OpenAIService::class)->isEnabled();
     }
+
+    /**
+     * Nettoyer et sécuriser une requête SQL pour l'envoi via dispatch
+     */
+    private function sanitizeQueryForDispatch(string $query): string
+    {
+        // Simplement retourner la requête sans modification excessive
+        // pour éviter les problèmes d'encodage
+        return trim($query);
+    }
+
+    /**
+     * Nettoyer une chaîne de caractères pour éviter les problèmes avec Livewire
+     */
+    private function sanitizeString(string $input): string
+    {
+        // Nettoyer la chaîne de caractères problématiques de manière plus simple
+        $cleanString = trim($input);
+
+        // Supprimer seulement les caractères de contrôle vraiment problématiques
+        $cleanString = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $cleanString);
+
+        return $cleanString;
+    }
+
+    /**
+     * Nettoyer un tableau de données pour éviter les problèmes avec Livewire
+     */
+    private function sanitizeArray(array $data): array
+    {
+        $cleanData = [];
+
+        foreach ($data as $key => $value) {
+            $cleanKey = $this->sanitizeString((string) $key);
+
+            if (is_array($value)) {
+                $cleanData[$cleanKey] = $this->sanitizeArray($value);
+            } elseif (is_string($value)) {
+                $cleanData[$cleanKey] = $this->sanitizeString($value);
+            } elseif (is_null($value)) {
+                $cleanData[$cleanKey] = null;
+            } else {
+                // Pour les autres types (int, float, bool), on les garde tels quels
+                $cleanData[$cleanKey] = $value;
+            }
+        }
+
+        return $cleanData;
+    }
+
+    /**
+     * Nettoyer toutes les propriétés publiques pour éviter les problèmes Livewire
+     */
+    private function cleanAllPublicProperties(): void
+    {
+        // Nettoyer les propriétés string
+        $this->sqlQuery = $this->sanitizeString($this->sqlQuery ?? '');
+        $this->selectedDatabase = $this->sanitizeString($this->selectedDatabase ?? '');
+        $this->errorMessage = $this->sanitizeString($this->errorMessage ?? '');
+        $this->aiPrompt = $this->sanitizeString($this->aiPrompt ?? '');
+        $this->queryExplanation = $this->sanitizeString($this->queryExplanation ?? '');
+        $this->originalQuery = $this->sanitizeString($this->originalQuery ?? '');
+        $this->tempQueryForSave = $this->sanitizeString($this->tempQueryForSave ?? '');
+        $this->tempDatabaseForSave = $this->sanitizeString($this->tempDatabaseForSave ?? '');
+
+        // Nettoyer les propriétés array
+        $this->queryResults = $this->sanitizeArray($this->queryResults ?? []);
+        $this->paginatedResults = $this->sanitizeArray($this->paginatedResults ?? []);
+        $this->queryHistory = $this->sanitizeArray($this->queryHistory ?? []);
+        $this->savedQueries = $this->sanitizeArray($this->savedQueries ?? []);
+        $this->foreignKeyColumns = $this->sanitizeArray($this->foreignKeyColumns ?? []);
+        $this->userPaginationInfo = $this->sanitizeArray($this->userPaginationInfo ?? []);
+    }
+
+
 
     public function getDatabaseSchema(): array
     {
@@ -700,18 +816,27 @@ class SqlPlayground extends Page implements HasForms, HasActions
                 ->icon('heroicon-o-sparkles')
                 ->color('purple')
                 ->action('toggleAiPanel');
-
-
         }
 
         return $actions;
+    }
+
+    /**
+     * Définir les actions disponibles pour cette page
+     */
+    protected function getActions(): array
+    {
+        return [
+            $this->saveQueryAction(),
+            $this->saveFromHistoryAction(),
+        ];
     }
 
     // ===== ACTIONS FILAMENT =====
 
     public function saveQueryAction(): Action
     {
-        return Action::make('saveQuery')
+        return Action::make('saveQueryAction')
             ->label('Sauvegarder la requête')
             ->icon('heroicon-o-bookmark')
             ->slideOver()
@@ -719,17 +844,11 @@ class SqlPlayground extends Page implements HasForms, HasActions
             ->modalSubmitActionLabel('Sauvegarder')
             ->form([
                 Grid::make(1)->schema([
-                    Placeholder::make('query_preview')
+                    Textarea::make('query_display')
                         ->label('Requête à sauvegarder')
-                        ->content(fn () => new \Illuminate\Support\HtmlString(
-                            '<div class="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 max-h-40 overflow-y-auto">' .
-                            '<div class="flex items-center gap-2 mb-2">' .
-                            '<svg class="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M14.447 3.026a.75.75 0 0 1 .527.921l-4.5 16.5a.75.75 0 0 1-1.448-.394l4.5-16.5a.75.75 0 0 1 .921-.527ZM16.72 6.22a.75.75 0 0 1 1.06 0l5.25 5.25a.75.75 0 0 1 0 1.06l-5.25 5.25a.75.75 0 1 1-1.06-1.06L21.44 12l-4.72-4.72a.75.75 0 0 1 0-1.06Zm-9.44 0a.75.75 0 0 1 0 1.06L2.56 12l4.72 4.72a.75.75 0 0 1-1.06 1.06L.97 12.53a.75.75 0 0 1 0-1.06l5.25-5.25a.75.75 0 0 1 1.06 0Z" clip-rule="evenodd"/></svg>' .
-                            '<span class="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Requête SQL</span>' .
-                            '</div>' .
-                            '<pre class="text-sm font-mono text-gray-900 dark:text-gray-100 whitespace-pre-wrap leading-relaxed">' . e($this->tempQueryForSave) . '</pre>' .
-                            '</div>'
-                        )),
+                        ->default(fn () => $this->tempQueryForSave)
+                        ->disabled()
+                        ->rows(4),
 
                     Placeholder::make('database_info')
                         ->label('Base de données')
@@ -804,16 +923,23 @@ class SqlPlayground extends Page implements HasForms, HasActions
 
     public function loadSavedQueries(): void
     {
-        $this->savedQueries = SavedQuery::where('user_id', Auth::id())
+        $rawQueries = SavedQuery::where('user_id', Auth::id())
             ->where('database_name', $this->selectedDatabase ?: '')
             ->orderBy('created_at', 'desc')
             ->get()
             ->toArray();
+
+        $this->savedQueries = $this->sanitizeArray($rawQueries);
     }
 
     public function openSaveModal(): void
     {
+        \Log::info('openSaveModal() appelée');
+        \Log::info('sqlQuery: ' . $this->sqlQuery);
+        \Log::info('selectedDatabase: ' . $this->selectedDatabase);
+
         if (empty(trim($this->sqlQuery))) {
+            \Log::warning('Requête vide');
             Notification::make()
                 ->title('Requête requise')
                 ->body('Veuillez saisir une requête SQL avant de la sauvegarder')
@@ -823,6 +949,7 @@ class SqlPlayground extends Page implements HasForms, HasActions
         }
 
         if (empty($this->selectedDatabase)) {
+            \Log::warning('Base de données non sélectionnée');
             Notification::make()
                 ->title('Base de données requise')
                 ->body('Veuillez sélectionner une base de données')
@@ -831,11 +958,29 @@ class SqlPlayground extends Page implements HasForms, HasActions
             return;
         }
 
-        // Stocker temporairement les données pour le modal
-        $this->tempQueryForSave = $this->sqlQuery;
-        $this->tempDatabaseForSave = $this->selectedDatabase;
+        // Stocker temporairement les données pour le modal avec nettoyage
+        $this->tempQueryForSave = $this->sanitizeString(trim($this->sqlQuery));
+        $this->tempDatabaseForSave = $this->sanitizeString(trim($this->selectedDatabase));
 
-        $this->mountAction('saveQuery');
+        \Log::info('Données temporaires stockées');
+        \Log::info('tempQueryForSave: ' . $this->tempQueryForSave);
+        \Log::info('tempDatabaseForSave: ' . $this->tempDatabaseForSave);
+
+        // Essayer d'ouvrir la modal avec une approche plus simple
+        try {
+            \Log::info('Tentative d\'ouverture de la modal');
+            $this->mountAction('saveQueryAction');
+            \Log::info('Modal ouverte avec succès');
+        } catch (\Exception $e) {
+            \Log::error('Erreur lors de l\'ouverture de la modal: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
+            // Si ça échoue, utiliser une notification pour informer l'utilisateur
+            Notification::make()
+                ->title('Erreur technique')
+                ->body('Impossible d\'ouvrir la modal. Erreur: ' . $e->getMessage())
+                ->danger()
+                ->send();
+        }
     }
 
 
@@ -866,7 +1011,7 @@ class SqlPlayground extends Page implements HasForms, HasActions
             $this->sqlQuery = $savedQuery->query;
 
             // Émettre un événement pour mettre à jour l'éditeur
-            $this->dispatch('update-sql-editor', query: $savedQuery->query);
+            $this->dispatch('update-sql-editor', query: $this->sanitizeQueryForDispatch($savedQuery->query));
 
             Notification::make()
                 ->title('Requête chargée pour modification')
@@ -908,7 +1053,7 @@ class SqlPlayground extends Page implements HasForms, HasActions
 
             // Charger la requête
             $this->sqlQuery = $savedQuery->query;
-            $this->dispatch('update-sql-editor', query: $savedQuery->query);
+            $this->dispatch('update-sql-editor', query: $this->sanitizeQueryForDispatch($savedQuery->query));
 
             // Exécuter immédiatement
             $this->executeQuery();
@@ -963,35 +1108,40 @@ class SqlPlayground extends Page implements HasForms, HasActions
         }
     }
 
-    public function saveFromHistory(string $query, string $database): void
+    public function saveFromHistory(string $encodedQuery, string $database): void
     {
-        // Stocker temporairement les données pour le modal
-        $this->tempQueryForSave = $query;
-        $this->tempDatabaseForSave = $database;
+        // Décoder la requête base64
+        $query = base64_decode($encodedQuery);
 
-        $this->mountAction('saveFromHistoryAction');
+        // Stocker temporairement les données pour le modal avec nettoyage
+        $this->tempQueryForSave = $this->sanitizeString(trim($query));
+        $this->tempDatabaseForSave = $this->sanitizeString(trim($database));
+
+        try {
+            $this->mountAction('saveFromHistoryAction');
+        } catch (\Exception $e) {
+            Notification::make()
+                ->title('Erreur technique')
+                ->body('Impossible d\'ouvrir la modal. Veuillez rafraîchir la page et réessayer.')
+                ->danger()
+                ->send();
+        }
     }
 
     public function saveFromHistoryAction(): Action
     {
-        return Action::make('saveFromHistory')
+        return Action::make('saveFromHistoryAction')
             ->label('Sauvegarder la requête')
             ->icon('heroicon-o-bookmark')
             ->slideOver()
             ->modalWidth('md')
             ->form([
                 Grid::make(1)->schema([
-                    Placeholder::make('query_preview')
+                    Textarea::make('query_display')
                         ->label('Requête à sauvegarder')
-                        ->content(fn () => new \Illuminate\Support\HtmlString(
-                            '<div class="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 max-h-40 overflow-y-auto">' .
-                            '<div class="flex items-center gap-2 mb-2">' .
-                            '<svg class="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M14.447 3.026a.75.75 0 0 1 .527.921l-4.5 16.5a.75.75 0 0 1-1.448-.394l4.5-16.5a.75.75 0 0 1 .921-.527ZM16.72 6.22a.75.75 0 0 1 1.06 0l5.25 5.25a.75.75 0 0 1 0 1.06l-5.25 5.25a.75.75 0 1 1-1.06-1.06L21.44 12l-4.72-4.72a.75.75 0 0 1 0-1.06Zm-9.44 0a.75.75 0 0 1 0 1.06L2.56 12l4.72 4.72a.75.75 0 0 1-1.06 1.06L.97 12.53a.75.75 0 0 1 0-1.06l5.25-5.25a.75.75 0 0 1 1.06 0Z" clip-rule="evenodd"/></svg>' .
-                            '<span class="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Requête SQL</span>' .
-                            '</div>' .
-                            '<pre class="text-sm font-mono text-gray-900 dark:text-gray-100 whitespace-pre-wrap leading-relaxed">' . e($this->tempQueryForSave) . '</pre>' .
-                            '</div>'
-                        )),
+                        ->default(fn () => $this->tempQueryForSave)
+                        ->disabled()
+                        ->rows(4),
 
                     Placeholder::make('database_info')
                         ->label('Base de données')
