@@ -42,6 +42,13 @@ class SqlPlayground extends Page implements HasForms, HasActions
     public bool $queryExecuted = false;
     private bool $isExecuting = false;
 
+    // Propriétés de pagination
+    public int $currentPage = 1;
+    public int $perPage = 25;
+    public int $totalResults = 0;
+    public array $paginatedResults = [];
+    public string $originalQuery = ''; // Stocker la requête originale pour la pagination
+
     public function mount(): void
     {
         $this->loadQueryHistory();
@@ -101,17 +108,30 @@ class SqlPlayground extends Page implements HasForms, HasActions
 
             $startTime = microtime(true);
 
-            // Exécuter la requête avec la base de données sélectionnée
-            $result = $this->getDatabaseService()->executeQuery($this->sqlQuery, $this->selectedDatabase);
+            // Stocker la requête originale pour la pagination
+            $this->originalQuery = $this->sqlQuery;
+
+            // Exécuter la requête avec pagination côté base de données
+            $result = $this->getDatabaseService()->executeQueryWithPagination(
+                $this->sqlQuery,
+                $this->selectedDatabase,
+                $this->currentPage,
+                $this->perPage
+            );
 
             $this->executionTime = microtime(true) - $startTime;
 
             if ($result['success']) {
                 $this->queryResults = $result['data'];
+                $this->paginatedResults = $result['data']; // Les données sont déjà paginées
                 $this->hasError = false;
                 $this->errorMessage = '';
-                $this->affectedRows = count($this->queryResults);
+                $this->affectedRows = $result['total_count'];
                 $this->queryExecuted = true;
+
+                // Initialiser la pagination avec les données du service
+                $this->totalResults = $result['total_count'];
+                $this->currentPage = $result['current_page'];
 
                 // Détecter les colonnes de clés étrangères
                 $this->foreignKeyColumns = $this->getDatabaseService()->detectForeignKeyColumns(
@@ -176,9 +196,159 @@ class SqlPlayground extends Page implements HasForms, HasActions
         $this->affectedRows = 0;
         $this->foreignKeyColumns = [];
         $this->queryExecuted = false;
+
+        // Réinitialiser la pagination
+        $this->currentPage = 1;
+        $this->totalResults = 0;
+        $this->paginatedResults = [];
+        $this->originalQuery = '';
     }
 
+    /**
+     * Met à jour les résultats paginés en rechargeant depuis la base de données
+     */
+    protected function updatePaginatedResults(): void
+    {
+        if (empty($this->originalQuery)) {
+            $this->paginatedResults = [];
+            return;
+        }
 
+        try {
+            $result = $this->getDatabaseService()->executeQueryWithPagination(
+                $this->originalQuery,
+                $this->selectedDatabase,
+                $this->currentPage,
+                $this->perPage
+            );
+
+            if ($result['success']) {
+                $this->paginatedResults = $result['data'];
+                $this->queryResults = $result['data']; // Synchroniser pour les autres fonctionnalités
+
+                // Mettre à jour les colonnes de clés étrangères pour la nouvelle page
+                $this->foreignKeyColumns = $this->getDatabaseService()->detectForeignKeyColumns(
+                    $this->paginatedResults,
+                    $this->selectedDatabase
+                );
+            }
+        } catch (\Exception $e) {
+            $this->paginatedResults = [];
+            $this->queryResults = [];
+        }
+    }
+
+    /**
+     * Aller à une page spécifique
+     */
+    public function goToPage(int $page): void
+    {
+        $maxPage = $this->getTotalPages();
+
+        if ($page < 1) {
+            $page = 1;
+        } elseif ($page > $maxPage) {
+            $page = $maxPage;
+        }
+
+        if ($this->currentPage !== $page) {
+            $this->currentPage = $page;
+            $this->updatePaginatedResults();
+        }
+    }
+
+    /**
+     * Aller à la page suivante
+     */
+    public function nextPage(): void
+    {
+        $this->goToPage($this->currentPage + 1);
+    }
+
+    /**
+     * Aller à la page précédente
+     */
+    public function previousPage(): void
+    {
+        $this->goToPage($this->currentPage - 1);
+    }
+
+    /**
+     * Obtenir le nombre total de pages
+     */
+    public function getTotalPages(): int
+    {
+        if ($this->totalResults === 0) {
+            return 1;
+        }
+
+        return (int) ceil($this->totalResults / $this->perPage);
+    }
+
+    /**
+     * Vérifier s'il y a une page suivante
+     */
+    public function hasNextPage(): bool
+    {
+        return $this->currentPage < $this->getTotalPages();
+    }
+
+    /**
+     * Vérifier s'il y a une page précédente
+     */
+    public function hasPreviousPage(): bool
+    {
+        return $this->currentPage > 1;
+    }
+
+    /**
+     * Obtenir les informations de pagination pour l'affichage
+     */
+    public function getPaginationInfo(): array
+    {
+        if ($this->totalResults === 0) {
+            return [
+                'start' => 0,
+                'end' => 0,
+                'total' => 0,
+                'current_page' => 1,
+                'total_pages' => 1
+            ];
+        }
+
+        $start = ($this->currentPage - 1) * $this->perPage + 1;
+        $end = min($this->currentPage * $this->perPage, $this->totalResults);
+
+        return [
+            'start' => $start,
+            'end' => $end,
+            'total' => $this->totalResults,
+            'current_page' => $this->currentPage,
+            'total_pages' => $this->getTotalPages()
+        ];
+    }
+
+    /**
+     * Récupérer tous les résultats pour l'export (sans pagination)
+     */
+    private function getAllResultsForExport(): array
+    {
+        if (empty($this->originalQuery)) {
+            return [];
+        }
+
+        try {
+            $result = $this->getDatabaseService()->executeQuery($this->originalQuery, $this->selectedDatabase);
+
+            if ($result['success']) {
+                return $result['data'];
+            }
+
+            return [];
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
 
     public function clearQuery(): void
     {
@@ -440,7 +610,7 @@ class SqlPlayground extends Page implements HasForms, HasActions
 
     public function exportResults(string $format = 'csv'): void
     {
-        if (empty($this->queryResults)) {
+        if (empty($this->originalQuery)) {
             Notification::make()
                 ->title('Aucun résultat')
                 ->body('Il n\'y a aucun résultat à exporter')
@@ -451,25 +621,35 @@ class SqlPlayground extends Page implements HasForms, HasActions
 
         try {
             if ($format === 'csv') {
+                // Récupérer TOUS les résultats pour l'export (sans pagination)
+                $allResults = $this->getAllResultsForExport();
+
+                if (empty($allResults)) {
+                    Notification::make()
+                        ->title('Aucun résultat')
+                        ->body('Il n\'y a aucun résultat à exporter')
+                        ->warning()
+                        ->send();
+                    return;
+                }
+
                 $csv = '';
 
                 // En-têtes
-                if (!empty($this->queryResults)) {
-                    $headers = array_keys($this->queryResults[0]);
-                    $csv .= implode(',', array_map(function($header) {
-                        return '"' . str_replace('"', '""', $header) . '"';
-                    }, $headers)) . "\n";
+                $headers = array_keys($allResults[0]);
+                $csv .= implode(',', array_map(function($header) {
+                    return '"' . str_replace('"', '""', $header) . '"';
+                }, $headers)) . "\n";
 
-                    // Données
-                    foreach ($this->queryResults as $row) {
-                        $csvRow = array_map(function($value) {
-                            if (is_null($value)) {
-                                return '';
-                            }
-                            return '"' . str_replace('"', '""', (string)$value) . '"';
-                        }, array_values($row));
-                        $csv .= implode(',', $csvRow) . "\n";
-                    }
+                // Données
+                foreach ($allResults as $row) {
+                    $csvRow = array_map(function($value) {
+                        if (is_null($value)) {
+                            return '';
+                        }
+                        return '"' . str_replace('"', '""', (string)$value) . '"';
+                    }, array_values($row));
+                    $csv .= implode(',', $csvRow) . "\n";
                 }
 
                 // Utiliser JavaScript pour télécharger le fichier

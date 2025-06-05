@@ -247,7 +247,7 @@
 
                         @if($hasError)
                             <!-- Affichage d'erreur amélioré -->
-                            <div id="sql-error-container" class="bg-red-50 border-2 border-red-300 rounded-lg p-6 shadow-lg">
+                            <div id="sql-error-container" class="bg-red-50 border-2 border-red-300">
                                 <div class="flex items-start space-x-3">
                                     <div class="flex-shrink-0">
                                         <x-heroicon-s-exclamation-triangle class="w-6 h-6 text-red-600" />
@@ -268,19 +268,32 @@
                         @else
                             <!-- Tableau des résultats -->
                             @if(count($queryResults) > 0)
-                                <div class="overflow-x-auto border border-gray-200 rounded-lg">
-                                    <table class="min-w-full divide-y divide-gray-200">
-                                        <thead class="bg-gray-50">
-                                        <tr>
-                                            @foreach(array_keys($queryResults[0]) as $column)
-                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                    {{ $column }}
-                                                </th>
-                                            @endforeach
-                                        </tr>
-                                        </thead>
-                                        <tbody class="bg-white divide-y divide-gray-200">
-                                        @foreach($queryResults as $index => $row)
+                                <div>
+                                    <!-- Contrôles de pagination du haut -->
+                                    @if($totalResults > $perPage)
+                                        <x-sql-pagination
+                                            :pagination-info="$this->getPaginationInfo()"
+                                            :total-pages="$this->getTotalPages()"
+                                            :current-page="$this->currentPage"
+                                            :has-previous-page="$this->hasPreviousPage()"
+                                            :has-next-page="$this->hasNextPage()"
+                                            position="top"
+                                        />
+                                    @endif
+
+                                    <div class="overflow-x-auto">
+                                        <table class="min-w-full divide-y divide-gray-200">
+                                            <thead class="bg-gray-50">
+                                            <tr>
+                                                @foreach(array_keys($queryResults[0]) as $column)
+                                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        {{ $column }}
+                                                    </th>
+                                                @endforeach
+                                            </tr>
+                                            </thead>
+                                            <tbody class="bg-white divide-y divide-gray-200">
+                                            @foreach($paginatedResults as $index => $row)
                                             <tr class="hover:bg-gray-50 {{ $index % 2 === 0 ? 'bg-white' : 'bg-gray-50' }}">
                                                 @foreach($row as $column => $value)
                                                     <td class="px-6 py-4 text-sm text-gray-900">
@@ -344,6 +357,19 @@
                                         </tbody>
                                     </table>
                                 </div>
+
+                                <!-- Contrôles de pagination du bas -->
+                                @if($totalResults > $perPage)
+                                    <x-sql-pagination
+                                        :pagination-info="$this->getPaginationInfo()"
+                                        :total-pages="$this->getTotalPages()"
+                                        :current-page="$this->currentPage"
+                                        :has-previous-page="$this->hasPreviousPage()"
+                                        :has-next-page="$this->hasNextPage()"
+                                        position="bottom"
+                                    />
+                                @endif
+                            </div>
                             @else
                                 <!-- État vide avec succès -->
                                 <div class="text-center py-12">
@@ -368,39 +394,6 @@
             <!-- Sidebar avec onglets -->
             <div class="lg:col-span-1">
                 <div class="sticky top-6 space-y-6">
-                    <!-- Onglet Exemples -->
-                    <x-filament::section
-                        icon="heroicon-o-light-bulb"
-                        icon-color="warning"
-                        collapsible
-                        collapsed
-                    >
-                        <x-slot name="heading">
-                            Requêtes d'exemple
-                        </x-slot>
-
-                        <x-slot name="description">
-                            Cliquez sur un exemple pour le charger dans l'éditeur
-                        </x-slot>
-
-                        <div class="space-y-2">
-                            @foreach($this->getExampleQueries() as $example)
-                                <button
-                                    wire:click="loadExampleQuery('{{ $example }}')"
-                                    class="w-full text-left p-3 text-xs bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200 group"
-                                >
-                                    <div class="flex items-start justify-between">
-                                        <code class="font-mono text-xs leading-relaxed group-hover:text-primary-600">
-                                            {{ $example }}
-                                        </code>
-                                        <x-heroicon-o-arrow-right
-                                            class="w-3 h-3 text-gray-400 group-hover:text-primary-500 flex-shrink-0 ml-2 mt-0.5"/>
-                                    </div>
-                                </button>
-                            @endforeach
-                        </div>
-                    </x-filament::section>
-
                     <!-- Onglet Historique -->
                     @if(!empty($queryHistory))
                         <x-filament::section
@@ -1113,6 +1106,10 @@
     <style>
         #header-sql .fi-section-content-ctn {
             display: none !important;
+        }
+
+        #sql-results-section .fi-section-content {
+            padding: 0 !important;
         }
     </style>
 </x-filament-panels::page>

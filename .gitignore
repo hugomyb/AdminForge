@@ -121,3 +121,4 @@ Desktop.ini
 !/storage/app/sql-exports/.gitkeep
 /storage/app/database-backups/*
 !/storage/app/database-backups/.gitkeep
+composer.lock

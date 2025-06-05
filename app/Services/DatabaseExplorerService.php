@@ -212,6 +212,93 @@ class DatabaseExplorerService
     }
 
     /**
+     * Exécuter une requête SQL avec pagination côté base de données
+     */
+    public function executeQueryWithPagination(string $query, string $database = null, int $page = 1, int $perPage = 25): array
+    {
+        try {
+            // D'abord, obtenir le nombre total de résultats
+            $totalCount = $this->getQueryTotalCount($query, $database);
+
+            // Ensuite, exécuter la requête avec LIMIT et OFFSET
+            $offset = ($page - 1) * $perPage;
+            $paginatedQuery = $this->addPaginationToQuery($query, $offset, $perPage);
+
+            // Exécuter la requête paginée
+            if ($database) {
+                $results = $this->executeQueryOnDatabase($paginatedQuery, $database);
+            } else {
+                $results = DB::select($paginatedQuery);
+            }
+
+            return [
+                'success' => true,
+                'data' => collect($results)->map(function ($row) {
+                    return (array) $row;
+                })->toArray(),
+                'total_count' => $totalCount,
+                'current_page' => $page,
+                'per_page' => $perPage,
+                'total_pages' => (int) ceil($totalCount / $perPage),
+                'message' => 'Requête exécutée avec succès'
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'data' => [],
+                'total_count' => 0,
+                'current_page' => $page,
+                'per_page' => $perPage,
+                'total_pages' => 0,
+                'message' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Obtenir le nombre total de résultats d'une requête
+     */
+    private function getQueryTotalCount(string $query, string $database = null): int
+    {
+        try {
+            // Créer une requête COUNT en wrappant la requête originale
+            $countQuery = "SELECT COUNT(*) as total FROM ({$query}) as count_query";
+
+            if ($database) {
+                $result = $this->executeQueryOnDatabase($countQuery, $database);
+            } else {
+                $result = DB::select($countQuery);
+            }
+
+            return $result[0]->total ?? 0;
+        } catch (\Exception $e) {
+            // Si la requête COUNT échoue, essayer d'exécuter la requête originale et compter
+            try {
+                if ($database) {
+                    $results = $this->executeQueryOnDatabase($query, $database);
+                } else {
+                    $results = DB::select($query);
+                }
+                return count($results);
+            } catch (\Exception $e2) {
+                return 0;
+            }
+        }
+    }
+
+    /**
+     * Ajouter LIMIT et OFFSET à une requête SQL
+     */
+    private function addPaginationToQuery(string $query, int $offset, int $limit): string
+    {
+        // Supprimer le point-virgule final s'il existe
+        $query = rtrim(trim($query), ';');
+
+        // Ajouter LIMIT et OFFSET
+        return $query . " LIMIT {$limit} OFFSET {$offset}";
+    }
+
+    /**
      * Exécuter une requête sur une base de données spécifique sans affecter la connexion principale
      */
     private function executeQueryOnDatabase(string $query, string $database): array
