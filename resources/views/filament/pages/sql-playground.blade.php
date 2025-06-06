@@ -1,4 +1,7 @@
 <x-filament-panels::page>
+
+    @vite(['resources/css/app.css'])
+
     <div class="space-y-6">
         <!-- Header Section -->
         <x-filament::section id="header-sql">
@@ -277,15 +280,9 @@
 
                         @if($hasError)
                             <!-- Affichage d'erreur amélioré -->
-                            <div id="sql-error-container" class="bg-red-50 border-2 border-red-300">
+                            <div id="sql-error-container" class="p-4">
                                 <div class="flex items-start space-x-3">
-                                    <div class="flex-shrink-0">
-                                        <x-heroicon-s-exclamation-triangle class="w-6 h-6 text-red-600" />
-                                    </div>
                                     <div class="flex-1 min-w-0">
-                                        <h3 class="text-lg font-semibold text-red-800 mb-3">
-                                            Erreur SQL
-                                        </h3>
                                         <div class="bg-red-100 border border-red-300 rounded-md p-4 max-h-64 overflow-y-auto">
                                             <pre class="text-sm text-red-800 whitespace-pre-wrap font-mono leading-relaxed break-words">{{ $errorMessage }}</pre>
                                         </div>
