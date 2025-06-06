@@ -1,198 +1,267 @@
 <x-filament-panels::page>
+    @vite(['resources/css/app.css'])
+
     <div class="space-y-6">
         <!-- En-tête avec informations de la base -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
-                        {{ $database }}
-                    </h1>
-                    <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        Base de données MySQL
-                    </p>
+        <x-filament::section>
+            <x-slot name="heading">
+                <div class="flex items-center gap-3">
+                    <x-heroicon-o-circle-stack class="w-6 h-6 text-primary-600" />
+                    {{ $database }}
                 </div>
-                <x-filament::button
-                    wire:click="$dispatch('refresh')"
-                    icon="heroicon-o-arrow-path"
-                    color="gray"
-                >
-                    Actualiser
-                </x-filament::button>
-            </div>
-        </div>
+            </x-slot>
+
+            <x-slot name="description">
+                <div class="flex items-center gap-4">
+                    <span>Base de données MySQL</span>
+                    <x-filament::badge color="success" size="sm">
+                        Connectée
+                    </x-filament::badge>
+                </div>
+            </x-slot>
+
+            <x-slot name="headerEnd">
+                <div class="flex gap-2">
+                    <x-filament::button
+                        href="{{ route('filament.admin.pages.database-explorer') }}"
+                        icon="heroicon-o-arrow-left"
+                        color="gray"
+                        size="sm"
+                    >
+                        Retour
+                    </x-filament::button>
+                    <x-filament::button
+                        wire:click="$dispatch('refresh')"
+                        icon="heroicon-o-arrow-path"
+                        color="primary"
+                        size="sm"
+                    >
+                        Actualiser
+                    </x-filament::button>
+                </div>
+            </x-slot>
+        </x-filament::section>
 
         <!-- Statistiques de la base -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <div class="flex items-center">
-                    <div class="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                        <x-heroicon-o-table-cells class="w-6 h-6 text-blue-600 dark:text-blue-400" />
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <x-filament::section>
+                <x-slot name="heading">
+                    <div class="flex items-center gap-2">
+                        <x-heroicon-o-table-cells class="w-5 h-5 text-primary-600" />
+                        Tables
                     </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Tables</p>
-                        <p class="text-2xl font-semibold text-gray-900 dark:text-white">
-                            {{ $databaseInfo['total_tables'] ?? 0 }}
-                        </p>
-                    </div>
-                </div>
-            </div>
+                </x-slot>
 
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <div class="flex items-center">
-                    <div class="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
-                        <x-heroicon-o-document-text class="w-6 h-6 text-green-600 dark:text-green-400" />
-                    </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Lignes totales</p>
-                        <p class="text-2xl font-semibold text-gray-900 dark:text-white">
-                            {{ number_format($databaseInfo['total_rows'] ?? 0) }}
-                        </p>
+                <div class="text-center">
+                    <div class="text-3xl font-bold text-gray-900">
+                        {{ $databaseInfo['total_tables'] ?? 0 }}
                     </div>
                 </div>
-            </div>
+            </x-filament::section>
 
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <div class="flex items-center">
-                    <div class="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
-                        <x-heroicon-o-server class="w-6 h-6 text-purple-600 dark:text-purple-400" />
+            <x-filament::section>
+                <x-slot name="heading">
+                    <div class="flex items-center gap-2">
+                        <x-heroicon-o-document-text class="w-5 h-5 text-primary-600" />
+                        Lignes
                     </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Taille</p>
-                        <p class="text-2xl font-semibold text-gray-900 dark:text-white">
-                            {{ $databaseInfo['size_mb'] ?? 0 }} MB
-                        </p>
-                    </div>
-                </div>
-            </div>
+                </x-slot>
 
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <div class="flex items-center">
-                    <div class="p-2 bg-orange-100 dark:bg-orange-900 rounded-lg">
-                        <x-heroicon-o-clock class="w-6 h-6 text-orange-600 dark:text-orange-400" />
-                    </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Dernière MAJ</p>
-                        <p class="text-lg font-semibold text-gray-900 dark:text-white">
-                            {{ now()->format('H:i') }}
-                        </p>
+                <div class="text-center">
+                    <div class="text-3xl font-bold text-gray-900">
+                        {{ number_format($databaseInfo['total_rows'] ?? 0) }}
                     </div>
                 </div>
-            </div>
+            </x-filament::section>
+
+            <x-filament::section>
+                <x-slot name="heading">
+                    <div class="flex items-center gap-2">
+                        <x-heroicon-o-server class="w-5 h-5 text-primary-600" />
+                        Taille
+                    </div>
+                </x-slot>
+
+                <div class="text-center">
+                    <div class="text-3xl font-bold text-gray-900">
+                        {{ $databaseInfo['size_mb'] ?? 0 }} MB
+                    </div>
+                </div>
+            </x-filament::section>
+
+            <x-filament::section>
+                <x-slot name="heading">
+                    <div class="flex items-center gap-2">
+                        <x-heroicon-o-clock class="w-5 h-5 text-primary-600" />
+                        Dernière MAJ
+                    </div>
+                </x-slot>
+
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-gray-900">
+                        {{ now()->format('H:i') }}
+                    </div>
+                </div>
+            </x-filament::section>
         </div>
 
         <!-- Onglets -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
-            <div class="border-b border-gray-200 dark:border-gray-700">
-                <nav class="flex space-x-8 px-6" aria-label="Tabs">
-                    <button
-                        wire:click="setActiveTab('tables')"
-                        class="py-4 px-1 border-b-2 font-medium text-sm {{ $activeTab === 'tables' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300' }}"
-                    >
-                        Tables
-                    </button>
-                    <button
-                        wire:click="setActiveTab('queries')"
-                        class="py-4 px-1 border-b-2 font-medium text-sm {{ $activeTab === 'queries' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300' }}"
-                    >
-                        Requêtes SQL
-                    </button>
-                    <button
-                        wire:click="setActiveTab('info')"
-                        class="py-4 px-1 border-b-2 font-medium text-sm {{ $activeTab === 'info' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300' }}"
-                    >
-                        Infos générales
-                    </button>
-                </nav>
-            </div>
+        <x-filament::tabs>
+            <x-filament::tabs.item
+                :active="$activeTab === 'tables'"
+                wire:click="setActiveTab('tables')"
+                icon="heroicon-o-table-cells"
+            >
+                Tables
+            </x-filament::tabs.item>
 
-            <div class="p-6">
-                @if($activeTab === 'tables')
+            <x-filament::tabs.item
+                :active="$activeTab === 'queries'"
+                wire:click="setActiveTab('queries')"
+                icon="heroicon-o-code-bracket"
+            >
+                Requêtes SQL
+            </x-filament::tabs.item>
+
+            <x-filament::tabs.item
+                :active="$activeTab === 'info'"
+                wire:click="setActiveTab('info')"
+                icon="heroicon-o-information-circle"
+            >
+                Infos générales
+            </x-filament::tabs.item>
+        </x-filament::tabs>
+
+        <x-filament::section>
+
+            @if($activeTab === 'tables')
+                @if(!empty($this->getTablesWithInfo()))
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         @foreach($this->getTablesWithInfo() as $table)
-                            <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700">
-                                <div class="flex items-center justify-between mb-2">
-                                    <h4 class="text-lg font-medium text-gray-900 dark:text-white">
+                            <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                                <div class="flex items-center gap-3 mb-3">
+                                    <x-heroicon-o-table-cells class="w-5 h-5 text-primary-600" />
+                                    <h4 class="font-semibold text-gray-900">
                                         {{ $table['name'] }}
                                     </h4>
-                                    <x-heroicon-o-table-cells class="w-5 h-5 text-gray-400" />
                                 </div>
-                                <div class="space-y-1 mb-4">
-                                    <p class="text-sm text-gray-600 dark:text-gray-400">
-                                        {{ number_format($table['row_count']) }} lignes
-                                    </p>
-                                    <p class="text-sm text-gray-600 dark:text-gray-400">
-                                        {{ count($table['columns']) }} colonnes
-                                    </p>
+
+                                <div class="space-y-2 mb-4">
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-500">Lignes:</span>
+                                        <span class="font-medium">{{ number_format($table['row_count']) }}</span>
+                                    </div>
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-500">Colonnes:</span>
+                                        <span class="font-medium">{{ count($table['columns']) }}</span>
+                                    </div>
                                 </div>
-                                <div class="flex space-x-2">
+
+                                <div class="space-y-2">
                                     <x-filament::button
                                         href="{{ route('filament.admin.pages.table-data') }}?database={{ urlencode($database) }}&table={{ urlencode($table['name']) }}"
                                         size="sm"
-                                        color="primary"
+                                        class="w-full"
+                                        icon="heroicon-o-eye"
                                     >
                                         Voir données
                                     </x-filament::button>
-                                    <x-filament::button
-                                        href="{{ route('filament.admin.pages.table-manager') }}?database={{ urlencode($database) }}&table={{ urlencode($table['name']) }}"
-                                        size="sm"
-                                        color="success"
-                                    >
-                                        Gérer
-                                    </x-filament::button>
-                                    <x-filament::button
-                                        size="sm"
-                                        color="gray"
-                                    >
-                                        Structure
-                                    </x-filament::button>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <x-filament::button
+                                            href="{{ route('filament.admin.pages.table-manager') }}?database={{ urlencode($database) }}&table={{ urlencode($table['name']) }}"
+                                            size="sm"
+                                            color="success"
+                                            icon="heroicon-o-pencil"
+                                        >
+                                            Gérer
+                                        </x-filament::button>
+                                        <x-filament::button
+                                            size="sm"
+                                            color="gray"
+                                            icon="heroicon-o-cog-6-tooth"
+                                        >
+                                            Structure
+                                        </x-filament::button>
+                                    </div>
                                 </div>
                             </div>
                         @endforeach
                     </div>
+                @else
 
-                    @if(empty($this->getTablesWithInfo()))
-                        <div class="text-center py-12">
-                            <x-heroicon-o-table-cells class="mx-auto h-12 w-12 text-gray-400" />
-                            <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">Aucune table</h3>
-                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                Cette base de données ne contient aucune table.
-                            </p>
-                        </div>
-                    @endif
-                @elseif($activeTab === 'queries')
                     <div class="text-center py-12">
-                        <x-heroicon-o-code-bracket class="mx-auto h-8 w-8 text-gray-400" />
-                        <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">Requêtes SQL</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                            Cette fonctionnalité sera disponible dans la Phase 3
+                        <x-heroicon-o-table-cells class="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">Aucune table trouvée</h3>
+                        <p class="text-gray-500">
+                            Cette base de données ne contient aucune table.
                         </p>
                     </div>
-                @elseif($activeTab === 'info')
-                    <div class="space-y-6">
-                        <div>
-                            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Informations générales</h3>
-                            <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
-                                <div>
-                                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Nom de la base</dt>
-                                    <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ $database }}</dd>
-                                </div>
-                                <div>
-                                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Nombre de tables</dt>
-                                    <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ $databaseInfo['total_tables'] ?? 0 }}</dd>
-                                </div>
-                                <div>
-                                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Nombre total de lignes</dt>
-                                    <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ number_format($databaseInfo['total_rows'] ?? 0) }}</dd>
-                                </div>
-                                <div>
-                                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Taille totale</dt>
-                                    <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ $databaseInfo['size_mb'] ?? 0 }} MB</dd>
-                                </div>
-                            </dl>
+                @endif
+            @elseif($activeTab === 'queries')
+                <div class="text-center py-12">
+                    <x-heroicon-o-code-bracket class="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">Requêtes SQL</h3>
+                    <p class="text-gray-500 mb-4">
+                        Cette fonctionnalité sera disponible dans la Phase 3.
+                    </p>
+                    <x-filament::button
+                        href="{{ route('filament.admin.pages.sql-playground') }}"
+                        icon="heroicon-o-play"
+                    >
+                        Utiliser SQL Playground
+                    </x-filament::button>
+                </div>
+            @elseif($activeTab === 'info')
+                <div class="space-y-6">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <dt class="text-sm font-medium text-gray-500">Nom de la base</dt>
+                            <dd class="text-lg font-semibold text-gray-900">{{ $database }}</dd>
+                        </div>
+                        <div class="space-y-1">
+                            <dt class="text-sm font-medium text-gray-500">Nombre de tables</dt>
+                            <dd class="text-lg font-semibold text-gray-900">{{ $databaseInfo['total_tables'] ?? 0 }}</dd>
+                        </div>
+                        <div class="space-y-1">
+                            <dt class="text-sm font-medium text-gray-500">Nombre total de lignes</dt>
+                            <dd class="text-lg font-semibold text-gray-900">{{ number_format($databaseInfo['total_rows'] ?? 0) }}</dd>
+                        </div>
+                        <div class="space-y-1">
+                            <dt class="text-sm font-medium text-gray-500">Taille totale</dt>
+                            <dd class="text-lg font-semibold text-gray-900">{{ $databaseInfo['size_mb'] ?? 0 }} MB</dd>
                         </div>
                     </div>
-                @endif
-            </div>
-        </div>
+
+                    <div class="border-t pt-6">
+                        <h4 class="text-lg font-medium text-gray-900 mb-4">Actions rapides</h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <x-filament::button
+                                href="{{ route('filament.admin.pages.sql-playground') }}"
+                                icon="heroicon-o-code-bracket"
+                                class="justify-center"
+                            >
+                                SQL Playground
+                            </x-filament::button>
+                            <x-filament::button
+                                wire:click="$dispatch('refresh')"
+                                icon="heroicon-o-arrow-path"
+                                color="gray"
+                                class="justify-center"
+                            >
+                                Actualiser
+                            </x-filament::button>
+                            <x-filament::button
+                                href="{{ route('filament.admin.pages.database-explorer') }}"
+                                icon="heroicon-o-arrow-left"
+                                color="gray"
+                                class="justify-center"
+                            >
+                                Retour
+                            </x-filament::button>
+                        </div>
+                    </div>
+                </div>
+            @endif
+        </x-filament::section>
     </div>
 </x-filament-panels::page>

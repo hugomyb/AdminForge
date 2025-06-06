@@ -4,9 +4,19 @@
     $databases = $databaseService->getAllDatabases();
 @endphp
 
+<style>
+/* Forcer la sidebar à ne pas avoir de scroll */
+.fi-sidebar {
+    overflow-y: hidden !important;
+}
+.fi-sidebar-nav {
+    overflow-y: hidden !important;
+}
+</style>
+
 <!-- Section Bases de données - placée après la navigation principale -->
 <div class="fi-sidebar-nav-groups">
-    <div class="fi-sidebar-nav-group">
+    <div class="fi-sidebar-nav-group" id="database-section">
         <!-- En-tête de section optimisé -->
         <div class="flex items-center gap-x-2 py-3 border-b border-gray-200 dark:border-gray-700">
             <div class="flex h-7 w-7 items-center justify-center rounded-md bg-primary-50 dark:bg-primary-500/10">
@@ -33,7 +43,7 @@
                     id="database-search"
                     placeholder="Filtrer les bases... (Ctrl+K)"
                     style="padding-left: 35px"
-                    class="database-search-input block w-full rounded-lg border-0 bg-gray-50 py-2 pl-10 pr-4 text-sm text-gray-900 ring-1 ring-inset ring-gray-200 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary-500 focus:bg-white dark:bg-gray-800 dark:text-white dark:ring-gray-700 dark:placeholder:text-gray-500 dark:focus:bg-gray-700 dark:focus:ring-primary-400 transition-all duration-200"
+                    class="database-search-input block w-full rounded-lg border-0 bg-gray-50 py-2 pl-10 pr-4 text-sm text-gray-900 ring-0 ring-inset ring-gray-200 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary-500 focus:bg-white dark:bg-gray-800 dark:text-white dark:ring-gray-700 dark:placeholder:text-gray-500 dark:focus:bg-gray-700 dark:focus:ring-primary-400 duration-200"
                     onkeyup="filterDatabases(this.value)"
                 />
             </div>
@@ -41,7 +51,7 @@
 
         <!-- Liste des bases optimisée -->
         <div class="pb-4">
-            <div class="max-h-72 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600" id="databases-list">
+            <div class="overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600" id="databases-list">
                 @if(count($databases) > 0)
                     <div class="space-y-0.5">
                         @foreach($databases as $database)
@@ -131,6 +141,62 @@ function refreshDatabases() {
     setTimeout(() => {
         window.location.reload();
     }, 300);
+}
+
+// Fonction pour ajuster la hauteur de la liste des bases de données
+function adjustDatabaseListHeight() {
+    const databaseSection = document.getElementById('database-section');
+    const databasesList = document.getElementById('databases-list');
+
+    if (!databaseSection || !databasesList) return;
+
+    // Trouver la sidebar principale
+    const sidebar = document.querySelector('.fi-sidebar') || document.querySelector('[data-sidebar]');
+    if (!sidebar) return;
+
+    // Calculer la position du début de la liste
+    const listRect = databasesList.getBoundingClientRect();
+    const listTop = listRect.top;
+
+    // Calculer la position du bas de la sidebar
+    const sidebarRect = sidebar.getBoundingClientRect();
+    const sidebarBottom = sidebarRect.bottom;
+
+    // Espace pour le bouton d'actualisation et padding (environ 100px pour être sûr)
+    const bottomSpace = 100;
+
+    // Calculer la hauteur disponible pour la liste
+    const availableHeight = sidebarBottom - listTop - bottomSpace;
+
+    // Appliquer la hauteur (minimum 150px pour éviter une liste trop petite)
+    const finalHeight = Math.max(150, availableHeight);
+    databasesList.style.maxHeight = finalHeight + 'px';
+
+    // S'assurer que la sidebar elle-même n'a pas de scroll
+    if (sidebar) {
+        sidebar.style.overflowY = 'hidden';
+    }
+}
+
+// Ajuster la hauteur au chargement et lors du redimensionnement
+document.addEventListener('DOMContentLoaded', function() {
+    // Petit délai pour s'assurer que Filament a fini de charger
+    setTimeout(adjustDatabaseListHeight, 100);
+});
+window.addEventListener('resize', adjustDatabaseListHeight);
+
+// Ajuster aussi après le chargement complet de la page
+window.addEventListener('load', function() {
+    setTimeout(adjustDatabaseListHeight, 200);
+});
+
+// Observer les changements dans la sidebar pour réajuster si nécessaire
+if (window.ResizeObserver) {
+    const resizeObserver = new ResizeObserver(adjustDatabaseListHeight);
+    const sidebar = document.querySelector('.fi-sidebar');
+    if (sidebar) {
+        resizeObserver.observe(sidebar);
+    }
 }
 
 // Raccourci clavier pour la recherche

@@ -1,4 +1,6 @@
 <x-filament-panels::page>
+    @vite(['resources/css/app.css'])
+
     <div class="space-y-6">
         <!-- Formulaire de configuration -->
         <div class="bg-transparent rounded-lg shadow">

@@ -1,4 +1,6 @@
 <x-filament-panels::page>
+    @vite(['resources/css/app.css'])
+
     <div class="space-y-6">
         <!-- En-tête -->
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
