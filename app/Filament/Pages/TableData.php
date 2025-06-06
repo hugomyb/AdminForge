@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use Filament\Pages\Page;
 use App\Services\DatabaseExplorerService;
 use App\Services\DataPreviewService;
+use Filament\Notifications\Notification;
 
 class TableData extends Page
 {
@@ -97,8 +98,23 @@ class TableData extends Page
 
     public function refreshData(): void
     {
-        $this->loadTableData();
-        $this->loadTableColumns();
+        try {
+            $this->loadTableData();
+            $this->loadTableColumns();
+            $this->loadForeignKeys();
+
+            Notification::make()
+                ->title('Actualisé')
+                ->body('Les données de la table ont été actualisées')
+                ->success()
+                ->send();
+        } catch (\Exception $e) {
+            Notification::make()
+                ->title('Erreur')
+                ->body('Impossible d\'actualiser les données: ' . $e->getMessage())
+                ->danger()
+                ->send();
+        }
     }
 
     public function getTotalPages(): int

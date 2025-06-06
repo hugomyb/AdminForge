@@ -4,9 +4,18 @@ namespace App\Filament\Pages;
 
 use Filament\Pages\Page;
 use App\Services\DatabaseExplorerService;
+use Filament\Notifications\Notification;
+use Filament\Actions\Action;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
+use Filament\Actions\Concerns\InteractsWithActions;
+use Filament\Actions\Contracts\HasActions;
 
-class DatabaseExplorer extends Page
+class DatabaseExplorer extends Page implements HasForms, HasActions
 {
+    use InteractsWithForms;
+    use InteractsWithActions;
 
     protected static ?string $navigationIcon = 'heroicon-o-circle-stack';
     protected static string $view = 'filament.pages.database-explorer';
@@ -56,9 +65,23 @@ class DatabaseExplorer extends Page
 
     public function refreshDatabases(): void
     {
-        $this->searchTerm = '';
-        $this->selectedDatabase = null;
-        $this->cachedDatabases = null; // Vider le cache pour forcer le rechargement
+        try {
+            $this->searchTerm = '';
+            $this->selectedDatabase = null;
+            $this->cachedDatabases = null; // Vider le cache pour forcer le rechargement
+
+            Notification::make()
+                ->title('Actualisé')
+                ->body('La liste des bases de données a été actualisée')
+                ->success()
+                ->send();
+        } catch (\Exception $e) {
+            Notification::make()
+                ->title('Erreur')
+                ->body('Impossible d\'actualiser les bases de données: ' . $e->getMessage())
+                ->danger()
+                ->send();
+        }
     }
 
     public function getDatabasesWithInfo(): array
@@ -92,5 +115,65 @@ class DatabaseExplorer extends Page
                 'size_mb' => 0
             ];
         }
+    }
+
+    /**
+     * Action pour créer une nouvelle base de données
+     */
+    public function createDatabaseAction(): Action
+    {
+        return Action::make('createDatabase')
+            ->label('Créer une nouvelle base de données')
+            ->icon('heroicon-o-plus-circle')
+            ->color('primary')
+            ->modal()
+            ->modalHeading('Créer une nouvelle base de données')
+            ->modalDescription('Entrez le nom de la nouvelle base de données à créer.')
+            ->modalSubmitActionLabel('Créer')
+            ->form([
+                TextInput::make('database_name')
+                    ->label('Nom de la base de données')
+                    ->required()
+                    ->maxLength(64)
+                    ->regex('/^[a-zA-Z_][a-zA-Z0-9_]*$/')
+                    ->validationMessages([
+                        'regex' => 'Le nom doit commencer par une lettre ou un underscore et ne contenir que des lettres, chiffres et underscores.'
+                    ])
+                    ->placeholder('ex: ma_nouvelle_base')
+                    ->helperText('Le nom ne peut contenir que des lettres, chiffres et underscores, et ne peut pas commencer par un chiffre.')
+            ])
+            ->action(function (array $data): void {
+                $result = $this->getDatabaseService()->createDatabase($data['database_name']);
+
+                if ($result['success']) {
+                    // Vider le cache des bases de données pour forcer le rechargement
+                    $this->cachedDatabases = null;
+
+                    Notification::make()
+                        ->title('Base de données créée')
+                        ->body($result['message'])
+                        ->success()
+                        ->send();
+
+                    // Rafraîchir la page pour afficher la nouvelle base
+                    $this->redirect(request()->header('Referer'));
+                } else {
+                    Notification::make()
+                        ->title('Erreur')
+                        ->body($result['message'])
+                        ->danger()
+                        ->send();
+                }
+            });
+    }
+
+    /**
+     * Obtenir les actions de la page
+     */
+    protected function getHeaderActions(): array
+    {
+        return [
+            $this->createDatabaseAction(),
+        ];
     }
 }

@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use Filament\Pages\Page;
 use App\Services\DatabaseExplorerService;
 use Illuminate\Contracts\View\View;
+use Filament\Notifications\Notification;
 
 class DatabaseDetail extends Page
 {
@@ -18,6 +19,8 @@ class DatabaseDetail extends Page
     public array $databaseInfo = [];
     public string $activeTab = 'tables';
 
+    protected $listeners = ['refresh' => 'refreshData'];
+
     public function mount(): void
     {
         // Récupérer le paramètre database depuis la requête
@@ -27,7 +30,7 @@ class DatabaseDetail extends Page
             abort(404, 'Base de données non spécifiée');
         }
 
-        $this->databaseInfo = $this->getDatabaseService()->getDatabaseInfo($this->database);
+        $this->loadDatabaseInfo();
     }
 
     protected function getDatabaseService(): DatabaseExplorerService
@@ -54,5 +57,30 @@ class DatabaseDetail extends Page
     public function getTablesWithInfo(): array
     {
         return $this->databaseInfo['tables'] ?? [];
+    }
+
+    public function loadDatabaseInfo(): void
+    {
+        try {
+            $this->databaseInfo = $this->getDatabaseService()->getDatabaseInfo($this->database);
+        } catch (\Exception $e) {
+            $this->databaseInfo = [];
+            Notification::make()
+                ->title('Erreur')
+                ->body('Impossible de charger les informations de la base de données: ' . $e->getMessage())
+                ->danger()
+                ->send();
+        }
+    }
+
+    public function refreshData(): void
+    {
+        $this->loadDatabaseInfo();
+
+        Notification::make()
+            ->title('Actualisé')
+            ->body('Les informations de la base de données ont été actualisées')
+            ->success()
+            ->send();
     }
 }

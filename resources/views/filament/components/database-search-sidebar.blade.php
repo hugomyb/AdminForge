@@ -4,6 +4,9 @@
     $databases = $databaseService->getAllDatabases();
 @endphp
 
+<!-- Meta tag pour le token CSRF -->
+<meta name="csrf-token" content="{{ csrf_token() }}">
+
 <style>
 /* Forcer la sidebar à ne pas avoir de scroll */
 .fi-sidebar {
@@ -83,13 +86,18 @@
 
             <!-- Bouton d'actualisation compact -->
             <div class="mt-3 px-1">
-                <button
-                    onclick="refreshDatabases()"
-                    class="refresh-button group flex w-full items-center justify-center gap-x-2 rounded-md border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 shadow-sm transition-all duration-150 hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:border-gray-500"
+                <x-filament::button
+                    wire:click="refreshDatabases"
+                    wire:loading.attr="disabled"
+                    wire:target="refreshDatabases"
+                    size="sm"
+                    color="gray"
+                    class="w-full"
+                    icon="heroicon-o-arrow-path"
                 >
-                    <x-heroicon-o-arrow-path class="h-3.5 w-3.5 transition-transform group-hover:rotate-180" />
-                    <span>Actualiser</span>
-                </button>
+                    <span wire:loading.remove wire:target="refreshDatabases">Actualiser</span>
+                    <span wire:loading wire:target="refreshDatabases">Actualisation...</span>
+                </x-filament::button>
             </div>
         </div>
     </div>
@@ -129,19 +137,7 @@ function filterDatabases(searchTerm) {
     }
 }
 
-function refreshDatabases() {
-    const button = event.target.closest('button');
-    const icon = button.querySelector('svg');
 
-    // Animation de rotation
-    icon.style.transform = 'rotate(360deg)';
-    button.disabled = true;
-
-    // Simuler un délai puis recharger
-    setTimeout(() => {
-        window.location.reload();
-    }, 300);
-}
 
 // Fonction pour ajuster la hauteur de la liste des bases de données
 function adjustDatabaseListHeight() {
@@ -210,4 +206,73 @@ document.addEventListener('keydown', function(e) {
         }
     }
 });
+
+// Fonction pour créer une base de données depuis la sidebar
+async function createDatabaseFromSidebar(event) {
+    event.preventDefault();
+
+    const form = event.target;
+    const formData = new FormData(form);
+    const databaseName = formData.get('database_name');
+
+    if (!databaseName) {
+        alert('Veuillez entrer un nom de base de données');
+        return;
+    }
+
+    // Validation côté client
+    const namePattern = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+    if (!namePattern.test(databaseName)) {
+        alert('Le nom doit commencer par une lettre ou un underscore et ne contenir que des lettres, chiffres et underscores.');
+        return;
+    }
+
+    try {
+        // Désactiver le bouton pendant la création
+        const submitButton = form.querySelector('button[type="submit"]');
+        const originalText = submitButton.textContent;
+        submitButton.disabled = true;
+        submitButton.textContent = 'Création...';
+
+        // Envoyer la requête
+        const response = await fetch('/admin/create-database', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({
+                database_name: databaseName
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Fermer le dropdown
+            const dropdownContainer = form.closest('[x-data]');
+            if (dropdownContainer && dropdownContainer.__x) {
+                dropdownContainer.__x.$data.open = false;
+            }
+
+            // Vider le formulaire
+            form.reset();
+
+            // Succès - recharger la page pour afficher la nouvelle base
+            setTimeout(() => {
+                window.location.reload();
+            }, 500);
+        } else {
+            // Erreur
+            alert('Erreur : ' + result.message);
+        }
+    } catch (error) {
+        alert('Erreur lors de la création de la base de données : ' + error.message);
+    } finally {
+        // Réactiver le bouton
+        const submitButton = form.querySelector('button[type="submit"]');
+        submitButton.disabled = false;
+        submitButton.textContent = originalText;
+    }
+}
 </script>

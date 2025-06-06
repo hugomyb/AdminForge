@@ -1,5 +1,4 @@
 <x-filament-panels::page>
-    @vite(['resources/css/app.css'])
 
     <div class="space-y-6">
         <!-- En-tête -->
@@ -23,10 +22,13 @@
                     </x-filament::button>
                     <x-filament::button
                         wire:click="refreshData"
+                        wire:loading.attr="disabled"
+                        wire:target="refreshData"
                         icon="heroicon-o-arrow-path"
                         color="gray"
                     >
-                        Actualiser
+                        <span wire:loading.remove wire:target="refreshData">Actualiser</span>
+                        <span wire:loading wire:target="refreshData">Actualisation...</span>
                     </x-filament::button>
                     <x-filament::button
                         href="{{ route('filament.admin.pages.database-detail') }}?database={{ urlencode($database) }}"
@@ -45,7 +47,7 @@
                 <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">
                     {{ $editingRow ? 'Modifier la ligne' : 'Ajouter une nouvelle ligne' }}
                 </h3>
-                
+
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     @foreach($columns as $column)
                         <div>
@@ -59,7 +61,7 @@
                                     <span class="text-xs text-red-600">*</span>
                                 @endif
                             </label>
-                            
+
                             @if(str_contains($column['type'], 'text') || str_contains($column['type'], 'longtext'))
                                 <textarea
                                     wire:model="formData.{{ $column['name'] }}"
@@ -78,7 +80,7 @@
                         </div>
                     @endforeach
                 </div>
-                
+
                 <div class="flex justify-end space-x-2 mt-6">
                     <x-filament::button
                         wire:click="cancelEdit"
@@ -103,7 +105,7 @@
                     <h3 class="text-lg font-medium text-gray-900 dark:text-white">
                         Données ({{ $this->getStartRecord() }}-{{ $this->getEndRecord() }} sur {{ number_format($totalRows) }})
                     </h3>
-                    
+
                     <!-- Pagination -->
                     <div class="flex items-center space-x-2">
                         <x-filament::button
@@ -114,11 +116,11 @@
                         >
                             Précédent
                         </x-filament::button>
-                        
+
                         <span class="text-sm text-gray-600 dark:text-gray-400">
                             Page {{ $currentPage }} sur {{ $this->getTotalPages() }}
                         </span>
-                        
+
                         <x-filament::button
                             wire:click="nextPage"
                             :disabled="$currentPage >= $this->getTotalPages()"
@@ -130,10 +132,10 @@
                     </div>
                 </div>
             </div>
-            
+
             <div class="overflow-x-auto">
                 @if(count($tableData) > 0)
-                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <table class="w-full divide-y divide-gray-200 dark:divide-gray-700">
                         <thead class="bg-gray-50 dark:bg-gray-700">
                             <tr>
                                 @foreach(array_keys($tableData[0]) as $columnName)

@@ -106,16 +106,28 @@
                 <div class="text-center py-12 mt-6">
                     <x-heroicon-o-circle-stack class="mx-auto h-12 w-12 text-gray-400 mb-4"/>
                     <h3 class="text-lg font-medium text-gray-900 mb-2">Aucune base de données trouvée</h3>
-                    <p class="text-gray-500 mb-4">
+                    <p class="text-gray-500 mb-6">
                         Aucune base de données n'a été trouvée ou il y a eu une erreur de connexion.
                     </p>
-                    <x-filament::button
-                        wire:click="refreshDatabases"
-                        icon="heroicon-o-arrow-path"
-                        color="primary"
-                    >
-                        Réessayer
-                    </x-filament::button>
+                    <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                        <x-filament::button
+                            wire:click="mountAction('createDatabase')"
+                            icon="heroicon-o-plus-circle"
+                            color="primary"
+                        >
+                            Créer une nouvelle base de données
+                        </x-filament::button>
+                        <x-filament::button
+                            wire:click="refreshDatabases"
+                            wire:loading.attr="disabled"
+                            wire:target="refreshDatabases"
+                            icon="heroicon-o-arrow-path"
+                            color="gray"
+                        >
+                            <span wire:loading.remove wire:target="refreshDatabases">Réessayer</span>
+                            <span wire:loading wire:target="refreshDatabases">Actualisation...</span>
+                        </x-filament::button>
+                    </div>
                 </div>
             @endif
         </x-filament::section>

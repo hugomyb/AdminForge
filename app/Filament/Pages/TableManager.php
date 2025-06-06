@@ -100,9 +100,24 @@ class TableManager extends Page implements HasForms, HasActions
 
     public function refreshData(): void
     {
-        $this->loadTableData();
-        $this->editingRow = null;
-        $this->showAddForm = false;
+        try {
+            $this->loadTableData();
+            $this->loadTableColumns();
+            $this->editingRow = null;
+            $this->showAddForm = false;
+
+            Notification::make()
+                ->title('Actualisé')
+                ->body('Les données de la table ont été actualisées')
+                ->success()
+                ->send();
+        } catch (\Exception $e) {
+            Notification::make()
+                ->title('Erreur')
+                ->body('Impossible d\'actualiser les données: ' . $e->getMessage())
+                ->danger()
+                ->send();
+        }
     }
 
     public function showAddRowForm(): void

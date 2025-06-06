@@ -580,6 +580,67 @@ class DatabaseExplorerService
     }
 
     /**
+     * Créer une nouvelle base de données
+     */
+    public function createDatabase(string $databaseName): array
+    {
+        try {
+            // Valider le nom de la base de données
+            if (!$this->isValidDatabaseName($databaseName)) {
+                return [
+                    'success' => false,
+                    'message' => 'Le nom de la base de données contient des caractères non autorisés. Utilisez uniquement des lettres, chiffres et underscores.'
+                ];
+            }
+
+            // Vérifier si la base de données existe déjà
+            if ($this->databaseExists($databaseName)) {
+                return [
+                    'success' => false,
+                    'message' => "La base de données '{$databaseName}' existe déjà."
+                ];
+            }
+
+            // Créer la base de données
+            DB::statement("CREATE DATABASE `{$databaseName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+
+            return [
+                'success' => true,
+                'message' => "Base de données '{$databaseName}' créée avec succès."
+            ];
+
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Erreur lors de la création de la base de données : ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Valider le nom d'une base de données
+     */
+    private function isValidDatabaseName(string $name): bool
+    {
+        // Le nom doit contenir uniquement des lettres, chiffres et underscores
+        // et ne pas commencer par un chiffre
+        return preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $name) && strlen($name) <= 64;
+    }
+
+    /**
+     * Vérifier si une base de données existe
+     */
+    private function databaseExists(string $databaseName): bool
+    {
+        try {
+            $databases = $this->getAllDatabases();
+            return in_array($databaseName, $databases);
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    /**
      * Récupérer les informations d'un enregistrement pour le tooltip
      */
     public function getRecordTooltipInfo(string $database, string $table, string $column, $value): ?array
