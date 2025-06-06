@@ -436,54 +436,53 @@
                                 @foreach($savedQueries as $savedQuery)
                                     <div
                                         class="p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors group">
-                                        <div class="flex items-start space-x-2">
-                                            <div class="flex-shrink-0 mt-1">
-                                                <x-heroicon-s-bookmark class="w-4 h-4 text-primary-500"/>
-                                            </div>
-                                            <div class="flex-1 min-w-0">
-                                                <div class="flex items-center justify-between mb-1">
-                                                    <h4 class="text-sm font-medium text-gray-900 truncate">
+                                        <div class="flex items-start justify-between">
+                                            <!-- Contenu principal -->
+                                            <div class="flex items-start space-x-2 flex-1 min-w-0">
+                                                <div class="flex-shrink-0 mt-1">
+                                                    <x-heroicon-s-bookmark class="w-4 h-4 text-primary-500"/>
+                                                </div>
+                                                <div class="flex-1 min-w-0">
+                                                    <h4 class="text-sm font-medium text-gray-900 truncate mb-1">
                                                         {{ $savedQuery['name'] }}
                                                     </h4>
-                                                </div>
-                                                <pre
-                                                    class="text-xs font-mono text-gray-700 whitespace-pre-wrap line-clamp-2 mb-2">{{ $savedQuery['query'] }}</pre>
-                                                <div class="flex items-center justify-between">
+                                                    <pre
+                                                        class="text-xs font-mono text-gray-700 whitespace-pre-wrap line-clamp-2 mb-2">{{ $savedQuery['query'] }}</pre>
                                                     <p class="text-xs text-gray-400">
                                                         {{ \Carbon\Carbon::parse($savedQuery['created_at'])->format('d/m/Y H:i') }}
                                                     </p>
                                                 </div>
-                                                <!-- Actions toujours visibles pour une meilleure UX -->
-                                                <div class="flex items-center gap-1 mt-2 pt-2 border-t border-gray-100">
-                                                    <x-filament::button
-                                                        wire:click="loadSavedQuery({{ $savedQuery['id'] }})"
-                                                        size="xs"
-                                                        color="gray"
-                                                        icon="heroicon-o-arrow-up-tray"
-                                                        tooltip="Charger dans l'éditeur"
-                                                    >
-                                                        Charger
-                                                    </x-filament::button>
-                                                    <x-filament::button
-                                                        wire:click="executeFromSaved({{ $savedQuery['id'] }})"
-                                                        size="xs"
-                                                        color="primary"
-                                                        icon="heroicon-o-play"
-                                                        tooltip="Exécuter directement"
-                                                    >
-                                                        Exécuter
-                                                    </x-filament::button>
-                                                    <x-filament::button
-                                                        wire:click="deleteSavedQuery({{ $savedQuery['id'] }})"
-                                                        size="xs"
-                                                        color="danger"
-                                                        icon="heroicon-o-trash"
-                                                        tooltip="Supprimer"
-                                                        wire:confirm="Êtes-vous sûr de vouloir supprimer cette requête ?"
-                                                    >
-                                                        Supprimer
-                                                    </x-filament::button>
-                                                </div>
+                                            </div>
+
+                                            <!-- Actions à droite, alignées verticalement -->
+                                            <div class="flex flex-col gap-1 ml-3 flex-shrink-0">
+                                                <x-filament::button
+                                                    wire:click="loadSavedQuery({{ $savedQuery['id'] }})"
+                                                    size="xs"
+                                                    color="gray"
+                                                    icon="heroicon-o-arrow-up-tray"
+                                                    tooltip="Charger dans l'éditeur"
+                                                >
+                                                    Charger
+                                                </x-filament::button>
+                                                <x-filament::button
+                                                    wire:click="executeFromSaved({{ $savedQuery['id'] }})"
+                                                    size="xs"
+                                                    color="primary"
+                                                    icon="heroicon-o-play"
+                                                    tooltip="Exécuter directement"
+                                                >
+                                                    Exécuter
+                                                </x-filament::button>
+                                                <x-filament::button
+                                                    wire:click="deleteSavedQuery({{ $savedQuery['id'] }})"
+                                                    size="xs"
+                                                    color="danger"
+                                                    icon="heroicon-o-trash"
+                                                    tooltip="Supprimer"
+                                                >
+                                                    Supprimer
+                                                </x-filament::button>
                                             </div>
                                         </div>
                                     </div>
@@ -563,7 +562,7 @@
                                                     <p class="text-xs text-gray-400">
                                                         {{ $item['timestamp'] }}
                                                     </p>
-                                                    <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <div class="flex items-center gap-1">
                                                         <x-filament::button
                                                             wire:click="loadQueryFromHistory('{{ base64_encode($item['query']) }}')"
                                                             size="xs"
@@ -573,15 +572,17 @@
                                                         >
                                                             Charger
                                                         </x-filament::button>
-                                                        <x-filament::button
-                                                            wire:click="saveFromHistory('{{ base64_encode($item['query']) }}', '{{ $item['database'] }}')"
-                                                            size="xs"
-                                                            color="primary"
-                                                            icon="heroicon-o-bookmark"
-                                                            tooltip="Sauvegarder cette requête"
-                                                        >
-                                                            Sauvegarder
-                                                        </x-filament::button>
+                                                        @if($item['success'])
+                                                            <x-filament::button
+                                                                wire:click="saveFromHistory('{{ base64_encode($item['query']) }}', '{{ $item['database'] }}')"
+                                                                size="xs"
+                                                                color="primary"
+                                                                icon="heroicon-o-bookmark"
+                                                                tooltip="Sauvegarder cette requête"
+                                                            >
+                                                                Sauvegarder
+                                                            </x-filament::button>
+                                                        @endif
                                                     </div>
                                                 </div>
                                             </div>

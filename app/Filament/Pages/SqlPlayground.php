@@ -829,6 +829,7 @@ class SqlPlayground extends Page implements HasForms, HasActions
         return [
             $this->saveQueryAction(),
             $this->saveFromHistoryAction(),
+            $this->deleteSavedQueryAction(),
         ];
     }
 
@@ -1073,39 +1074,65 @@ class SqlPlayground extends Page implements HasForms, HasActions
         }
     }
 
+    public function deleteSavedQueryAction(): Action
+    {
+        return Action::make('deleteSavedQueryAction')
+            ->label('Supprimer')
+            ->icon('heroicon-o-trash')
+            ->color('danger')
+            ->requiresConfirmation()
+            ->modalHeading('Supprimer la requête')
+            ->modalDescription('Êtes-vous sûr de vouloir supprimer cette requête ? Cette action est irréversible.')
+            ->modalSubmitActionLabel('Supprimer')
+            ->action(function (array $arguments): void {
+                try {
+                    $queryId = $arguments['queryId'] ?? null;
+
+                    if (!$queryId) {
+                        Notification::make()
+                            ->title('Erreur')
+                            ->body('ID de requête manquant')
+                            ->danger()
+                            ->send();
+                        return;
+                    }
+
+                    $savedQuery = SavedQuery::where('id', $queryId)
+                        ->where('user_id', Auth::id())
+                        ->first();
+
+                    if (!$savedQuery) {
+                        Notification::make()
+                            ->title('Requête introuvable')
+                            ->body('La requête demandée n\'existe pas ou ne vous appartient pas')
+                            ->warning()
+                            ->send();
+                        return;
+                    }
+
+                    $queryName = $savedQuery->name;
+                    $savedQuery->delete();
+                    $this->loadSavedQueries();
+
+                    Notification::make()
+                        ->title('Requête supprimée')
+                        ->body("La requête \"{$queryName}\" a été supprimée")
+                        ->success()
+                        ->send();
+
+                } catch (\Exception $e) {
+                    Notification::make()
+                        ->title('Erreur de suppression')
+                        ->body('Impossible de supprimer la requête : ' . $e->getMessage())
+                        ->danger()
+                        ->send();
+                }
+            });
+    }
+
     public function deleteSavedQuery(int $queryId): void
     {
-        try {
-            $savedQuery = SavedQuery::where('id', $queryId)
-                ->where('user_id', Auth::id())
-                ->first();
-
-            if (!$savedQuery) {
-                Notification::make()
-                    ->title('Requête introuvable')
-                    ->body('La requête demandée n\'existe pas ou ne vous appartient pas')
-                    ->warning()
-                    ->send();
-                return;
-            }
-
-            $queryName = $savedQuery->name;
-            $savedQuery->delete();
-            $this->loadSavedQueries();
-
-            Notification::make()
-                ->title('Requête supprimée')
-                ->body("La requête \"{$queryName}\" a été supprimée")
-                ->success()
-                ->send();
-
-        } catch (\Exception $e) {
-            Notification::make()
-                ->title('Erreur de suppression')
-                ->body('Impossible de supprimer la requête : ' . $e->getMessage())
-                ->danger()
-                ->send();
-        }
+        $this->mountAction('deleteSavedQueryAction', ['queryId' => $queryId]);
     }
 
     public function saveFromHistory(string $encodedQuery, string $database): void
