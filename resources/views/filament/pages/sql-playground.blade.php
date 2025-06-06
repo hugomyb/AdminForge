@@ -459,7 +459,7 @@
                                                         wire:click="loadSavedQuery({{ $savedQuery['id'] }})"
                                                         size="xs"
                                                         color="gray"
-                                                        icon="heroicon-o-pencil"
+                                                        icon="heroicon-o-arrow-up-tray"
                                                         tooltip="Charger dans l'éditeur"
                                                     >
                                                         Charger
@@ -481,6 +481,7 @@
                                                         tooltip="Supprimer"
                                                         wire:confirm="Êtes-vous sûr de vouloir supprimer cette requête ?"
                                                     >
+                                                        Supprimer
                                                     </x-filament::button>
                                                 </div>
                                             </div>

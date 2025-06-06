@@ -117,54 +117,7 @@
     }
 }
 
-/* Styles pour la bulle de chat IA */
-.ai-chat-bubble {
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-}
 
-.ai-chat-bubble .chat-message {
-    animation: messageSlideIn 0.3s ease-out;
-}
-
-@keyframes messageSlideIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* Animation pour le bouton flottant */
-.chat-float-button {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.chat-float-button:hover {
-    transform: scale(1.05);
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-}
-
-/* Scrollbar pour la zone de chat */
-.chat-container::-webkit-scrollbar {
-    width: 4px;
-}
-
-.chat-container::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.chat-container::-webkit-scrollbar-thumb {
-    background-color: rgba(156, 163, 175, 0.5);
-    border-radius: 2px;
-}
-
-.chat-container::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(156, 163, 175, 0.8);
-}
 
 /* Style pour les tooltips */
 .database-tooltip {

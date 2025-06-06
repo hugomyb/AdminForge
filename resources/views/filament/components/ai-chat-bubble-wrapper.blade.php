@@ -1,1 +1,0 @@
-@livewire('ai-chat-bubble')

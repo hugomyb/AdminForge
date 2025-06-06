@@ -71,10 +71,6 @@ class AdminPanelProvider extends PanelProvider
             ->renderHook(
                 'panels::sidebar.nav.end',
                 fn () => view('filament.components.database-search-sidebar')
-            )
-            ->renderHook(
-                'panels::body.end',
-                fn () => view('filament.components.ai-chat-bubble-wrapper')
             );
     }
 }
